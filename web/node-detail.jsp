@@ -33,7 +33,17 @@
                         <div class="bg-dark text-light p-4 rounded-3" style="font-family: monospace; white-space: pre-wrap; line-height: 1.6;">${node.systemPrompt}</div>
 
                     </div>
-                    <div class="card-footer bg-light text-end">
+                    <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                        <c:if test="${sessionScope.userId != null && node.authorId == sessionScope.userId}">
+                            <a href="javascript:void(0)"
+                               class="btn btn-outline-danger"
+                               onclick="tablerConfirm('删除节点', '确定要删除节点「${node.name}」吗？此操作不可撤销。', function(){ location.href='node-market?action=delete&id=${node.id}'; })">
+                                <i class="ti ti-trash me-2"></i>删除此节点
+                            </a>
+                        </c:if>
+                        <c:if test="${sessionScope.userId == null || node.authorId != sessionScope.userId}">
+                            <span></span>
+                        </c:if>
                         <a href="chat" class="btn btn-primary"><i class="ti ti-player-play me-2"></i> 前往工作台使用此节点</a>
                     </div>
                 </div>

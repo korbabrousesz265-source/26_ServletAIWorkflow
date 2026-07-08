@@ -22,6 +22,30 @@
 </style>
 
 <div class="page-wrapper">
+    <!-- 🔑 API Key 未配置警告 -->
+    <c:if test="${showApiKeyWarning}">
+        <div class="container-xl mt-3">
+            <div class="alert alert-warning alert-dismissible shadow-sm" role="alert">
+                <div class="d-flex align-items-center">
+                    <div class="me-3">
+                        <i class="ti ti-alert-triangle fs-1 text-warning"></i>
+                    </div>
+                    <div>
+                        <h4 class="alert-title">⚠️ 尚未配置 API 密钥</h4>
+                        <div class="text-muted">
+                            你还没有配置个人 API Key，工作流将使用系统默认密钥运行。
+                            为了获得更稳定的服务，建议前往
+                            <a href="profile?action=index" class="btn btn-warning btn-sm ms-2 fw-bold">
+                                <i class="ti ti-key me-1"></i>配置我的 API Key
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+            </div>
+        </div>
+    </c:if>
+
     <div class="page-header d-print-none">
         <div class="container-xl">
             <div class="row g-2 align-items-center">
@@ -80,7 +104,9 @@
                                         <div class="card-body">
                                             <c:choose>
                                                 <c:when test="${not empty finalResult}">
-                                                    <textarea id="finalResultBox" class="form-control" rows="12">${finalResult}</textarea>
+                                                    <textarea id="finalResultBox" style="display:none;">${finalResult}</textarea>
+                                                    <div id="markdown-viewer" class="form-control bg-dark text-white p-4" style="min-height: 300px; overflow-y: auto; font-size: 15px; border-radius: 8px;">
+                                                    </div>
                                                 </c:when>
                                                 <c:otherwise>
                                                     <div class="text-muted text-center py-5">暂无输出，请在左侧连线并启动工作流。</div>
@@ -193,7 +219,7 @@
     function removeNode(btn) {
         const container = document.getElementById('nodeContainer');
         if (container.children.length <= 1) {
-            alert('工作流至少需要保留一个处理节点！');
+            showToast('工作流至少需要保留一个处理节点！', 'danger');
             return;
         }
 
@@ -264,7 +290,7 @@
 
         } catch (error) {
             console.error("❌ PPT 生成节点执行异常:", error);
-            alert("PPT 生成失败，请检查 AI 输出的 JSON 格式是否正确！");
+            showToast("PPT 生成失败，请检查 AI 输出的 JSON 格式是否正确！", 'danger');
         }
     }
 </script>
@@ -291,38 +317,36 @@
         if(resultBox) {
             resultBox.select();
             document.execCommand("copy");
-            alert("✅ 结果已成功复制到剪贴板！");
+            showToast("✅ 结果已成功复制到剪贴板！");
         }
     }
-    // 💡 架构师注：旧版的 saveCanvasToLocal 等垃圾代码已被彻底铲除，全权交由底部的新缓存引擎接管！
 
-    // 页面加载完毕后，自动从本地缓存恢复画板
+    // ================= 2. 画板运行状态“无感记忆”引擎 =================
     document.addEventListener("DOMContentLoaded", function() {
-        const savedData = localStorage.getItem('myWorkflowSnapshot');
-        if (savedData) {
-            const workflowData = JSON.parse(savedData);
 
-            // 恢复用户输入
-            if (workflowData.input) {
-                document.querySelector('textarea[name="userText"]').value = workflowData.input;
-            }
+        // 🗑️ 1. 彻底斩草除根：清除以前遗留的“莎士比亚”脏数据
+        localStorage.removeItem('myWorkflowSnapshot');
 
-            // 恢复节点（你现有的 addNodeToCanvas 方法需要自己适配一下）
-            // 例如： workflowData.nodes.forEach(node => addNodeToCanvas(node.id, node.title));
-            console.log("✅ 画板状态已从本地缓存恢复！");
+        // 🔄 2. 页面重载后，尝试从 Session (会话缓存) 中无缝恢复上一次提交的画板
+        const currentStateStr = sessionStorage.getItem('ai_workflow_current_state');
+        if (currentStateStr) {
+            const currentState = JSON.parse(currentStateStr);
+            // 👑 呼叫底层真正的反序列化主厨，一行代码还原整个节点链和输入框！
+            renderCanvas(currentState);
+            console.log("✅ 画板节点与输入内容已自动恢复！");
         }
 
-        // 监听表单提交，在提交前保存最后一次状态
+        // 📸 3. 拦截表单提交：在发请求给后端前，用 1 毫秒的时间拍个快照存起来
         const form = document.querySelector('form');
         if (form) {
             form.addEventListener('submit', function() {
-                saveCanvasToLocal();
+                // 呼叫底层真正的序列化主厨，抓取所有数据
+                const currentSnapshot = getCanvasJson();
+                // 存入 sessionStorage（只在当前标签页有效，比 localStorage 更安全整洁）
+                sessionStorage.setItem('ai_workflow_current_state', JSON.stringify(currentSnapshot));
             });
         }
     });
-
-    // 注意：在你实现“拖拽添加节点”或“点击删除节点”的 JS 代码末尾，
-    // 请记得调用一下 saveCanvasToLocal(); 这样才能实时保存！
 </script>
 <script>
     // 👑 定义浏览器本地缓存的专属 Key
@@ -409,7 +433,7 @@
         localStorage.setItem(CACHE_KEY, JSON.stringify(history));
 
         renderLocalSidebar(); // 刷新侧边栏
-        alert("✅ 已秒存至浏览器本地缓存！");
+        showToast("✅ 已秒存至浏览器本地缓存！");
     }
 
     // ================= 核心功能 2：渲染侧边栏列表 =================
@@ -439,24 +463,35 @@
 
     // ================= 核心功能 3：从缓存恢复到画板 =================
     function loadFromCache(id) {
-        if (!confirm("⚠️ 加载新工作流将覆盖当前画板上的所有未保存内容，确认加载吗？")) return;
-
-        let history = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
-        const record = history.find(item => item.id === id);
-
-        if (record) {
-            renderCanvas(record.data); // 调用画板的渲染引擎
-            // 👑 架构师修复：加 \ 转义
-            alert(`✅ 成功恢复：\${record.name}`);
-        }
+        // 👑 呼叫全局 Tabler 弹窗，将业务代码包裹在回调函数里
+        tablerConfirm(
+            "覆盖画板警告",
+            "加载新工作流将覆盖当前画板上的所有未保存内容，您确认加载吗？",
+            function() {
+                let history = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
+                const record = history.find(item => item.id === id);
+                if (record) {
+                    renderCanvas(record.data); // 调用画板的渲染引擎
+                    // 将原来的 showToast(`✅ 成功恢复：${record.name}`); 替换为：
+                    showToast("✅ 成功恢复：" + record.name);
+                }
+            }
+        );
     }
+
     // ================= 核心功能 4：删除某条缓存 =================
     function deleteCache(id) {
-        if (!confirm("确定要删除这条本地缓存吗？")) return;
-        let history = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
-        history = history.filter(item => item.id !== id);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(history));
-        renderLocalSidebar();
+        // 👑 呼叫全局 Tabler 弹窗
+        tablerConfirm(
+            "彻底删除",
+            "确定要删除这条本地暂存记录吗？删除后无法恢复！",
+            function() {
+                let history = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
+                history = history.filter(item => item.id !== id);
+                localStorage.setItem(CACHE_KEY, JSON.stringify(history));
+                renderLocalSidebar(); // 刷新列表
+            }
+        );
     }
 
     // ================= 核心功能 5：按需导出为本地 JSON 文件 =================
@@ -488,9 +523,9 @@
             try {
                 const jsonObj = JSON.parse(e.target.result);
                 renderCanvas(jsonObj);
-                alert("✅ 文件导入并解析成功！");
+                showToast("✅ 文件导入并解析成功！");
             } catch (err) {
-                alert("❌ 导入失败，不是合法的 JSON 工作流文件！");
+                showToast("❌ 导入失败，不是合法的 JSON 工作流文件！", 'danger');
             }
             // 清空 input 的值，保证下次选同一个文件也能触发 change 事件
             event.target.value = '';
@@ -501,5 +536,65 @@
     // 页面加载完成后自动渲染侧边栏
     document.addEventListener("DOMContentLoaded", renderLocalSidebar);
 </script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 检查页面上是否有最终输出结果框，并且里面有内容
+        const resultBox = document.getElementById('finalResultBox');
+        if (resultBox && resultBox.value.trim() !== '') {
+            // 延迟 500 毫秒，等页面渲染稳了再放礼花
+            setTimeout(() => {
+                var duration = 3 * 1000;
+                var animationEnd = Date.now() + duration;
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+                function randomInRange(min, max) {
+                    return Math.random() * (max - min) + min;
+                }
+
+                // 左右两边同时发射五彩纸屑
+                var interval = setInterval(function() {
+                    var timeLeft = animationEnd - Date.now();
+                    if (timeLeft <= 0) {
+                        return clearInterval(interval);
+                    }
+                    var particleCount = 50 * (timeLeft / duration);
+                    confetti(Object.assign({}, defaults, {
+                        particleCount,
+                        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+                        colors: ['#26eb26', '#206bc4', '#f59f00', '#d63939', '#74b816']
+                    }));
+                    confetti(Object.assign({}, defaults, {
+                        particleCount,
+                        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+                        colors: ['#26eb26', '#206bc4', '#f59f00', '#d63939', '#74b816']
+                    }));
+                }, 250);
+            }, 500);
+        }
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const rawText = document.getElementById('finalResultBox')?.value;
+        const viewer = document.getElementById('markdown-viewer');
+
+        if (rawText && viewer) {
+            // 配置 marked 引擎接入 highlight.js
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                    return hljs.highlight(code, { language }).value;
+                }
+            });
+            // 渲染并点亮代码！
+            viewer.innerHTML = marked.parse(rawText);
+        }
+    });
+</script>
 <jsp:include page="footer.jsp" />

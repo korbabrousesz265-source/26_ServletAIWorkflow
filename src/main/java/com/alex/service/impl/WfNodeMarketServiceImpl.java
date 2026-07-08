@@ -34,4 +34,16 @@ public class WfNodeMarketServiceImpl implements WfNodeMarketService {
             return false;
         }
     }
+
+    @Override
+    public boolean deleteNodeById(int id) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            int rows = sqlSession.getMapper(WfNodeMarketMapper.class).deleteNodeById(id);
+            sqlSession.commit();
+            return rows > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

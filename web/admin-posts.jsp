@@ -51,9 +51,9 @@
                             </td>
                             <td class="text-muted">${post.createTime}</td>
                             <td>
-                                <a href="posts?action=delete&id=${post.id}"
+                                <a href="javascript:void(0)"
                                    class="btn btn-sm btn-outline-danger fw-bold"
-                                   onclick="return confirm('⚠️ 确定要下架该分享记录吗？此操作无法撤销！')">
+                                   onclick="tablerConfirm('强制下架', '⚠️ 确定要下架该分享记录吗？此操作无法撤销！', function(){ location.href='posts?action=delete&id=${post.id}'; })">
                                     <i class="ti ti-trash me-1"></i> 强制下架
                                 </a>
                             </td>

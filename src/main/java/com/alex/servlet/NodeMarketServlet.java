@@ -66,4 +66,29 @@ public class NodeMarketServlet extends BaseServlet {
         return "redirect:node-market"; // 重新加载节点市场
     }
 
+    // 👑 删除自己发布的节点
+    protected String delete(HttpServletRequest request, HttpServletResponse response) {
+        Integer userId = (Integer) request.getSession().getAttribute("userId");
+        if (userId == null) return "redirect:login.jsp";
+
+        String idStr = request.getParameter("id");
+        if (idStr == null) return "redirect:node-market";
+
+        int nodeId = Integer.parseInt(idStr);
+
+        // 🔒 验证节点所有权：只有作者本人才能删除
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            WfNodeMarketMapper mapper = sqlSession.getMapper(WfNodeMarketMapper.class);
+            WfNodeMarket node = mapper.getNodeById(nodeId);
+            if (node != null && node.getAuthorId() == userId) {
+                nodeMarketService.deleteNodeById(nodeId);
+                request.getSession().setAttribute("msg", "✅ 节点已成功删除");
+            } else {
+                request.getSession().setAttribute("msg", "❌ 无权删除该节点");
+            }
+        }
+
+        return "redirect:node-market";
+    }
+
 }

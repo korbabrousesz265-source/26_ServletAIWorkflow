@@ -94,7 +94,7 @@
                 document.getElementById('workflowSnapshotInput').value = JSON.stringify(jsonObj);
                 console.log("✅ 工作流文件解析成功，全量快照已注入表单隐藏域！");
             } catch (err) {
-                alert("❌ 错误：该文件不是合法的 JSON 工作流配置文件，请重新选择！");
+                showToast("❌ 错误：该文件不是合法的 JSON 工作流配置文件，请重新选择！", 'danger');
                 input.value = ''; // 清空选择
                 document.getElementById('workflowSnapshotInput').value = '';
             }

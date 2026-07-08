@@ -6,8 +6,10 @@ import com.alex.pojo.WfHistoryLog;
 import com.alex.pojo.WfNodeMarket;
 import com.alex.service.WfHistoryLogService;
 import com.alex.service.WfNodeMarketService;
+import com.alex.service.SysApiKeyService;
 import com.alex.service.impl.WfHistoryLogServiceImpl;
 import com.alex.service.impl.WfNodeMarketServiceImpl;
+import com.alex.service.impl.SysApiKeyServiceImpl;
 import com.alex.utils.MyBatisUtil;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -35,10 +37,25 @@ public class ChatServlet extends HttpServlet {
     private WfNodeMarketService nodeMarketService = new WfNodeMarketServiceImpl();
     // 👑 呼叫计费与审计主厨
     private WfHistoryLogService logService = new WfHistoryLogServiceImpl();
+    // 👑 呼叫 API Key 主厨
+    private SysApiKeyService apiKeyService = new SysApiKeyServiceImpl();
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         // 极其纯净的一行获取数据代码
         req.setAttribute("templates", nodeMarketService.getAllNodes());
+
+        // 🔑 检查用户是否已配置 API Key
+        Integer userId = (Integer) req.getSession().getAttribute("userId");
+        if (userId != null && userId > 0) {
+            com.alex.pojo.SysApiKey key = apiKeyService.getApiKeyByUserId(userId);
+            boolean openaiEmpty = key == null || key.getOpenaiKey() == null || key.getOpenaiKey().isEmpty();
+            boolean deepseekEmpty = key == null || key.getDeepseekKey() == null || key.getDeepseekKey().isEmpty();
+            if (openaiEmpty && deepseekEmpty) {
+                req.setAttribute("showApiKeyWarning", true);
+            }
+        }
+
         req.getRequestDispatcher("/workflow.jsp").forward(req, resp);
     }
 

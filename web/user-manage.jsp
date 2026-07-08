@@ -75,10 +75,10 @@
                                 </td>
                                 <td>
                                     <c:if test="${u.isBlocked == 0}">
-                                        <a href="userServlet?action=block&userId=${u.id}&isBlocked=1" class="btn btn-sm btn-outline-danger" onclick="return confirm('确认要屏蔽该用户吗？');">屏蔽</a>
+                                        <a href="javascript:void(0)" class="btn btn-sm btn-outline-danger" onclick="tablerConfirm('屏蔽用户', '确认要屏蔽该用户吗？', function(){ location.href='userServlet?action=block&userId=${u.id}&isBlocked=1'; })">屏蔽</a>
                                     </c:if>
                                     <c:if test="${u.isBlocked == 1}">
-                                        <a href="userServlet?action=block&userId=${u.id}&isBlocked=0" class="btn btn-sm btn-outline-success" onclick="return confirm('确认要恢复该用户吗？');">恢复</a>
+                                        <a href="javascript:void(0)" class="btn btn-sm btn-outline-success" onclick="tablerConfirm('恢复用户', '确认要恢复该用户吗？', function(){ location.href='userServlet?action=block&userId=${u.id}&isBlocked=0'; })">恢复</a>
                                     </c:if>
                                 </td>
                             </tr>

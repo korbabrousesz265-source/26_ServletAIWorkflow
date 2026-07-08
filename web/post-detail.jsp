@@ -21,9 +21,13 @@
                 </div>
                 <div class="col-auto ms-auto d-print-none">
                     <div class="btn-list">
-                        <a href="#" class="btn btn-outline-secondary">
-                            <i class="ti ti-heart me-2 text-pink"></i> 收藏工作流
-                        </a>
+                        <c:if test="${sessionScope.userId != null && post.authorId == sessionScope.userId}">
+                            <a href="javascript:void(0)"
+                               class="btn btn-outline-danger"
+                               onclick="tablerConfirm('删除帖子', '确定要删除这篇帖子吗？评论和收藏数据将一并清除，此操作不可撤销。', function(){ location.href='forum?action=deletePost&id=${post.id}'; })">
+                                <i class="ti ti-trash me-2"></i>删除帖子
+                            </a>
+                        </c:if>
                         <a href="chat?importTemplateId=${post.id}" class="btn btn-primary d-none d-sm-inline-block shadow-sm">
                             <i class="ti ti-download me-2"></i> 导入到我的工作台
                         </a>

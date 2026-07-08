@@ -220,9 +220,9 @@
                                                                 <div class="text-muted small">关注于 ${follow.followTime}</div>
                                                             </div>
                                                             <div class="col-auto">
-                                                                <a href="profile?action=unfollow&followedId=${follow.id}"
+                                                                <a href="javascript:void(0)"
                                                                    class="btn btn-outline-danger btn-sm unfollow-btn"
-                                                                   onclick="return confirm('确定要取消关注 ${follow.username} 吗？')">
+                                                                   onclick="tablerConfirm('取消关注', '确定要取消关注 ${follow.username} 吗？', function(){ location.href='profile?action=unfollow&followedId=${follow.id}'; })">
                                                                     <i class="ti ti-user-minus me-1"></i>取消关注
                                                                 </a>
                                                             </div>
@@ -267,9 +267,9 @@
                                                                 </div>
                                                             </div>
                                                             <div class="col-auto">
-                                                                <a href="profile?action=unfavorite&postId=${fav.id}"
+                                                                <a href="javascript:void(0)"
                                                                    class="btn btn-outline-danger btn-sm unfavorite-btn"
-                                                                   onclick="return confirm('确定要取消收藏该帖子吗？')">
+                                                                   onclick="tablerConfirm('取消收藏', '确定要取消收藏该帖子吗？', function(){ location.href='profile?action=unfavorite&postId=${fav.id}'; })">
                                                                     <i class="ti ti-bookmark-off me-1"></i>取消收藏
                                                                 </a>
                                                             </div>

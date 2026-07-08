@@ -140,6 +140,32 @@ public class ForumServlet extends BaseServlet {
         return "redirect:forum?action=detail&id=" + postIdStr;
     }
 
+    // 6. 👑 删除自己的帖子
+    protected String deletePost(HttpServletRequest request, HttpServletResponse response) {
+        Integer userId = (Integer) request.getSession().getAttribute("userId");
+        if (userId == null) return "redirect:login.jsp";
+
+        String postIdStr = request.getParameter("id");
+        if (postIdStr == null) return "redirect:forum?action=index";
+
+        int postId = Integer.parseInt(postIdStr);
+
+        // 🔒 验证所有权
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            ForumPostMapper postMapper = sqlSession.getMapper(ForumPostMapper.class);
+            ForumPost post = postMapper.getPostById(postId);
+            if (post != null && post.getAuthorId() == userId) {
+                sqlSession.getMapper(ForumPostMapper.class).deletePostById(postId);
+                sqlSession.commit();
+                request.getSession().setAttribute("msg", "✅ 帖子已成功删除");
+            } else {
+                request.getSession().setAttribute("msg", "❌ 无权删除该帖子");
+            }
+        }
+
+        return "redirect:forum?action=index";
+    }
+
     // ==================== 🔔 通知辅助方法 ====================
 
     /**

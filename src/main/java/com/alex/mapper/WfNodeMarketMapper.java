@@ -4,6 +4,7 @@ import com.alex.pojo.WfNodeMarket;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Delete;
 import java.util.List;
 
 public interface WfNodeMarketMapper {
@@ -30,4 +31,10 @@ public interface WfNodeMarketMapper {
     @Insert("INSERT INTO wf_node_market(name, provider, description, token_cost, icon, system_prompt, author_id, create_time) " +
             "VALUES(#{name}, #{provider}, #{description}, #{tokenCost}, #{icon}, #{systemPrompt}, #{authorId}, NOW())")
     int insertNode(WfNodeMarket node);
+
+    /**
+     * 👑 删除节点（仅作者本人可调用）
+     */
+    @Delete("DELETE FROM wf_node_market WHERE id = #{id}")
+    int deleteNodeById(@Param("id") int id);
 }

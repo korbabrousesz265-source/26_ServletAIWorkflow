@@ -60,8 +60,15 @@
                             </div>
                             <div class="card-footer d-flex align-items-center bg-light">
                                 <span class="badge bg-green-lt">消耗: ${node.tokenCost} Token</span>
-                                <div class="ms-auto">
+                                <div class="ms-auto d-flex gap-2">
                                     <a href="node-market?action=detail&id=${node.id}" class="btn btn-sm btn-outline-primary">查看详情</a>
+                                    <c:if test="${sessionScope.userId != null && node.authorId == sessionScope.userId}">
+                                        <a href="javascript:void(0)"
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="tablerConfirm('删除节点', '确定要删除节点「${node.name}」吗？此操作不可撤销。', function(){ location.href='node-market?action=delete&id=${node.id}'; })">
+                                            <i class="ti ti-trash"></i>
+                                        </a>
+                                    </c:if>
                                 </div>
                             </div>
                         </div>
