@@ -15,4 +15,10 @@ public interface ForumService {
     // --- 管理员专用方法 ---
     List<Map<String, Object>> selectAllPostsForAdmin();
     boolean deletePostById(int id);
+
+    // --- 社交关注与收藏管理 ---
+    List<Map<String, Object>> getFollowingUsers(int userId);
+    List<Map<String, Object>> getFavoritePosts(int userId);
+    boolean unfollow(int followerId, int followedId);
+    boolean unfavorite(int userId, int postId);
 }

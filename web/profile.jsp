@@ -8,7 +8,6 @@
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         border: 1px solid rgba(101, 116, 141, 0.12) !important;
     }
-    /* 鼠标滑过时：平滑上浮 + 柔和色彩投影 */
     .smooth-panel-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 10px 20px rgba(32, 107, 196, 0.08) !important;
@@ -29,6 +28,24 @@
     .smooth-panel-card:hover .icon-box-accent {
         transform: scale(1.1);
     }
+    .social-item {
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+    }
+    .social-item:hover {
+        background-color: rgba(32, 107, 196, 0.03);
+        border-left-color: #206bc4;
+    }
+    .unfollow-btn, .unfavorite-btn {
+        transition: all 0.2s ease;
+    }
+    .unfollow-btn:hover, .unfavorite-btn:hover {
+        transform: scale(1.05);
+    }
+    .empty-state-icon {
+        font-size: 3.5rem;
+        opacity: 0.3;
+    }
 </style>
 
 <div class="page-wrapper">
@@ -46,6 +63,7 @@
         <div class="container-xl">
             <div class="row row-cards">
 
+                <!-- ========== 左侧栏：个人信息 + 管理入口 ========== -->
                 <div class="col-12 col-lg-4">
                     <div class="card shadow-sm mb-3">
                         <div class="card-body p-4 text-center">
@@ -112,7 +130,9 @@
                     </c:if>
                 </div>
 
+                <!-- ========== 右侧栏：API Key + 社交面板 ========== -->
                 <div class="col-12 col-lg-8">
+                    <!-- 操作提示 -->
                     <c:if test="${not empty sessionScope.msg}">
                         <div class="alert alert-success alert-dismissible shadow-sm" role="alert">
                             <div class="d-flex">
@@ -124,12 +144,14 @@
                         <% session.removeAttribute("msg"); %>
                     </c:if>
 
-                    <div class="card shadow-sm">
+                    <!-- API Key 配置卡片 -->
+                    <div class="card shadow-sm mb-3">
                         <div class="card-header">
                             <h3 class="card-title"><i class="ti ti-key me-2 text-warning"></i>个人私有云算力密钥配置</h3>
                         </div>
                         <div class="card-body">
                             <form action="profile" method="post">
+                                <input type="hidden" name="action" value="saveApiKey">
                                 <div class="mb-3">
                                     <label class="form-label">OpenAI API Key</label>
                                     <div class="input-group input-group-flat">
@@ -151,6 +173,128 @@
                             </form>
                         </div>
                     </div>
+
+                    <!-- ========== 社交关注 & 收藏面板 ========== -->
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="ti ti-heart me-2 text-red"></i>社交与收藏</h3>
+                        </div>
+
+                        <!-- Tab 导航 -->
+                        <div class="card-body pb-0">
+                            <ul class="nav nav-pills" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-following" type="button" role="tab">
+                                        <i class="ti ti-user-check me-1"></i>我关注的用户
+                                        <span class="badge bg-blue-lt text-blue ms-1">${not empty followingList ? followingList.size() : 0}</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-favorites" type="button" role="tab">
+                                        <i class="ti ti-bookmark me-1"></i>我收藏的帖子
+                                        <span class="badge bg-yellow-lt text-yellow ms-1">${not empty favoritePostList ? favoritePostList.size() : 0}</span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Tab 内容 -->
+                        <div class="card-body">
+                            <div class="tab-content">
+
+                                <!-- Tab 1: 我关注的用户 -->
+                                <div class="tab-pane fade show active" id="tab-following" role="tabpanel">
+                                    <c:choose>
+                                        <c:when test="${not empty followingList}">
+                                            <div class="list-group list-group-flush">
+                                                <c:forEach var="follow" items="${followingList}">
+                                                    <div class="list-group-item social-item">
+                                                        <div class="row align-items-center">
+                                                            <div class="col-auto">
+                                                                <span class="avatar avatar-sm rounded bg-blue-lt text-blue">
+                                                                    <i class="ti ti-user"></i>
+                                                                </span>
+                                                            </div>
+                                                            <div class="col text-truncate">
+                                                                <span class="fw-bold text-reset">${follow.username}</span>
+                                                                <div class="text-muted small">关注于 ${follow.followTime}</div>
+                                                            </div>
+                                                            <div class="col-auto">
+                                                                <a href="profile?action=unfollow&followedId=${follow.id}"
+                                                                   class="btn btn-outline-danger btn-sm unfollow-btn"
+                                                                   onclick="return confirm('确定要取消关注 ${follow.username} 吗？')">
+                                                                    <i class="ti ti-user-minus me-1"></i>取消关注
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </c:forEach>
+                                            </div>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <div class="text-center py-5 text-muted">
+                                                <i class="ti ti-user-search empty-state-icon d-block mb-3"></i>
+                                                <p class="fs-4 fw-bold">还没有关注任何人</p>
+                                                <p class="text-muted">去社区逛逛，发现有趣的创作者吧！</p>
+                                                <a href="forum" class="btn btn-primary mt-2">
+                                                    <i class="ti ti-planet me-1"></i>前往模板社区
+                                                </a>
+                                            </div>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </div>
+
+                                <!-- Tab 2: 我收藏的帖子 -->
+                                <div class="tab-pane fade" id="tab-favorites" role="tabpanel">
+                                    <c:choose>
+                                        <c:when test="${not empty favoritePostList}">
+                                            <div class="list-group list-group-flush">
+                                                <c:forEach var="fav" items="${favoritePostList}">
+                                                    <div class="list-group-item social-item">
+                                                        <div class="row align-items-center">
+                                                            <div class="col-auto">
+                                                                <span class="avatar avatar-sm rounded bg-yellow-lt text-yellow">
+                                                                    <i class="ti ti-bookmark"></i>
+                                                                </span>
+                                                            </div>
+                                                            <div class="col text-truncate">
+                                                                <a href="forum?action=detail&id=${fav.id}" class="fw-bold text-reset text-decoration-none">${fav.title}</a>
+                                                                <div class="text-muted small">
+                                                                    <c:if test="${not empty fav.category}">
+                                                                        <span class="badge bg-secondary-lt me-1">${fav.category}</span>
+                                                                    </c:if>
+                                                                    收藏于 ${fav.favTime}
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-auto">
+                                                                <a href="profile?action=unfavorite&postId=${fav.id}"
+                                                                   class="btn btn-outline-danger btn-sm unfavorite-btn"
+                                                                   onclick="return confirm('确定要取消收藏该帖子吗？')">
+                                                                    <i class="ti ti-bookmark-off me-1"></i>取消收藏
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </c:forEach>
+                                            </div>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <div class="text-center py-5 text-muted">
+                                                <i class="ti ti-bookmark-off empty-state-icon d-block mb-3"></i>
+                                                <p class="fs-4 fw-bold">还没有收藏任何帖子</p>
+                                                <p class="text-muted">在社区中发现好内容时，点击收藏即可保存到这里</p>
+                                                <a href="forum" class="btn btn-primary mt-2">
+                                                    <i class="ti ti-planet me-1"></i>前往模板社区
+                                                </a>
+                                            </div>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>

@@ -9,5 +9,21 @@
     </div>
 </footer>
 </div> <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+<!-- 🔔 动态获取未读消息数量 -->
+<script>
+(function() {
+    var badge = document.getElementById('unreadBadge');
+    if (!badge) return;
+    fetch('/messages?action=unreadCount')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.count > 0) {
+                badge.textContent = data.count;
+                badge.style.display = '';
+            }
+        })
+        .catch(function() { /* 静默失败 */ });
+})();
+</script>
 </body>
 </html>

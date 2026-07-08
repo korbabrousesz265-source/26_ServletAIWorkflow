@@ -2,10 +2,15 @@ package com.alex.servlet;
 
 import com.alex.mapper.ForumPostMapper;
 import com.alex.mapper.ForumInteractionMapper;
+import com.alex.mapper.UserMapper;
 import com.alex.pojo.ForumPost;
 import com.alex.pojo.ForumComment;
+import com.alex.pojo.Message;
+import com.alex.pojo.User;
 import com.alex.service.ForumService;
+import com.alex.service.MessageService;
 import com.alex.service.impl.ForumServiceImpl;
+import com.alex.service.impl.MessageServiceImpl;
 import com.alex.utils.MyBatisUtil;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +19,8 @@ import org.apache.ibatis.session.SqlSession;
 
 @WebServlet("/forum")
 public class ForumServlet extends BaseServlet {
+
+    private MessageService messageService = new MessageServiceImpl();
 
     // 1. 论坛列表
     // 1. 论坛大厅列表 (支持分类过滤)
@@ -61,22 +68,31 @@ public class ForumServlet extends BaseServlet {
         return "/post-detail.jsp";
     }
 
-    // 3. 切换收藏状态
+    // 3. 切换收藏状态（点赞/取消点赞）
     protected String toggleFavorite(HttpServletRequest request, HttpServletResponse response) {
         Integer userId = (Integer) request.getSession().getAttribute("userId");
         String postIdStr = request.getParameter("postId");
         if (userId == null) return "redirect:login.jsp";
 
+        int postId = Integer.parseInt(postIdStr);
+        boolean isAdding = false; // 标记本次是点赞还是取消
+
         try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
             ForumInteractionMapper mapper = sqlSession.getMapper(ForumInteractionMapper.class);
-            int postId = Integer.parseInt(postIdStr);
             if (mapper.isFavorited(userId, postId) > 0) {
                 mapper.removeFavorite(userId, postId);
             } else {
                 mapper.addFavorite(userId, postId);
+                isAdding = true;
             }
             sqlSession.commit();
         }
+
+        // 🔔 点赞通知：仅在执行点赞操作时发送（取消点赞不发）
+        if (isAdding) {
+            sendLikeNotification(userId, postId);
+        }
+
         return "redirect:forum?action=detail&id=" + postIdStr;
     }
 
@@ -105,15 +121,102 @@ public class ForumServlet extends BaseServlet {
         if (userId == null) return "redirect:login.jsp";
 
         String postIdStr = request.getParameter("postId");
+        String content = request.getParameter("commentContent");
+        int postId = Integer.parseInt(postIdStr);
+
         try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
             ForumInteractionMapper mapper = sqlSession.getMapper(ForumInteractionMapper.class);
             ForumComment comment = new ForumComment();
-            comment.setPostId(Integer.parseInt(postIdStr));
+            comment.setPostId(postId);
             comment.setUserId(userId);
-            comment.setContent(request.getParameter("commentContent"));
+            comment.setContent(content);
             mapper.insertComment(comment);
             sqlSession.commit();
         }
+
+        // 🔔 评论通知：给帖子作者发送通知
+        sendCommentNotification(userId, postId, content);
+
         return "redirect:forum?action=detail&id=" + postIdStr;
+    }
+
+    // ==================== 🔔 通知辅助方法 ====================
+
+    /**
+     * 发送点赞通知给帖子作者
+     */
+    private void sendLikeNotification(int likerUserId, int postId) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            ForumPostMapper postMapper = sqlSession.getMapper(ForumPostMapper.class);
+            UserMapper userMapper = sqlSession.getMapper(UserMapper.class);
+
+            ForumPost post = postMapper.getPostById(postId);
+            if (post == null) return;
+
+            // 不给自己发通知
+            if (post.getAuthorId() == likerUserId) return;
+
+            User liker = userMapper.getUserById(likerUserId);
+            if (liker == null) return;
+
+            // 截取帖子标题（避免过长）
+            String postTitle = post.getTitle();
+            if (postTitle.length() > 20) {
+                postTitle = postTitle.substring(0, 20) + "...";
+            }
+
+            Message msg = new Message();
+            msg.setUserId(post.getAuthorId());
+            msg.setType("like");
+            msg.setIcon("thumb-up");
+            msg.setTitle("新点赞提醒");
+            msg.setContent("用户 " + liker.getUsername() + " 点赞了你的帖子《" + postTitle + "》");
+            msg.setLink("forum?action=detail&id=" + postId);
+
+            messageService.createMessage(msg);
+        } catch (Exception e) {
+            e.printStackTrace(); // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送评论通知给帖子作者
+     */
+    private void sendCommentNotification(int commenterUserId, int postId, String commentContent) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            ForumPostMapper postMapper = sqlSession.getMapper(ForumPostMapper.class);
+            UserMapper userMapper = sqlSession.getMapper(UserMapper.class);
+
+            ForumPost post = postMapper.getPostById(postId);
+            if (post == null) return;
+
+            // 不给自己发通知
+            if (post.getAuthorId() == commenterUserId) return;
+
+            User commenter = userMapper.getUserById(commenterUserId);
+            if (commenter == null) return;
+
+            // 截取评论和标题
+            String postTitle = post.getTitle();
+            if (postTitle.length() > 20) {
+                postTitle = postTitle.substring(0, 20) + "...";
+            }
+            String snippet = commentContent;
+            if (snippet != null && snippet.length() > 30) {
+                snippet = snippet.substring(0, 30) + "...";
+            }
+
+            Message msg = new Message();
+            msg.setUserId(post.getAuthorId());
+            msg.setType("comment");
+            msg.setIcon("message-2");
+            msg.setTitle("新评论提醒");
+            msg.setContent("用户 " + commenter.getUsername() + " 在你的帖子《" + postTitle + "》下留言：" + snippet);
+            msg.setLink("forum?action=detail&id=" + postId);
+
+            messageService.createMessage(msg);
+        } catch (Exception e) {
+            e.printStackTrace(); // 通知发送失败不影响主流程
+        }
     }
 }

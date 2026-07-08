@@ -1,6 +1,7 @@
 package com.alex.service.impl;
 
 import com.alex.mapper.ForumPostMapper;
+import com.alex.mapper.ForumInteractionMapper;
 import com.alex.pojo.ForumPost;
 import com.alex.service.ForumService;
 import com.alex.utils.MyBatisUtil;
@@ -47,6 +48,38 @@ public class ForumServiceImpl implements ForumService {
     public boolean deletePostById(int id) {
         try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
             int rows = sqlSession.getMapper(ForumPostMapper.class).deletePostById(id);
+            sqlSession.commit();
+            return rows > 0;
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> getFollowingUsers(int userId) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            return sqlSession.getMapper(ForumInteractionMapper.class).getFollowingUsers(userId);
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> getFavoritePosts(int userId) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            return sqlSession.getMapper(ForumInteractionMapper.class).getFavoritePosts(userId);
+        }
+    }
+
+    @Override
+    public boolean unfollow(int followerId, int followedId) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            int rows = sqlSession.getMapper(ForumInteractionMapper.class).removeFollow(followerId, followedId);
+            sqlSession.commit();
+            return rows > 0;
+        }
+    }
+
+    @Override
+    public boolean unfavorite(int userId, int postId) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            int rows = sqlSession.getMapper(ForumInteractionMapper.class).removeFavorite(userId, postId);
             sqlSession.commit();
             return rows > 0;
         }

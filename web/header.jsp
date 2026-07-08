@@ -74,9 +74,9 @@
                         <a href="/profile" class="dropdown-item">
                             <i class="ti ti-user-circle me-2"></i> 个人主页
                         </a>
-                        <a href="/messages" class="dropdown-item">
+                        <a href="/messages" class="dropdown-item position-relative">
                             <i class="ti ti-bell me-2"></i> 消息通知
-                            <span class="badge bg-red ms-auto">3</span>
+                            <span id="unreadBadge" class="badge bg-red ms-auto" style="display:none;">0</span>
                         </a>
                         <a href="/profile" class="dropdown-item">
                             <i class="ti ti-key me-2"></i> API Key 管理

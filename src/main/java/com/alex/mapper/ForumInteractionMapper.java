@@ -3,6 +3,7 @@ package com.alex.mapper;
 import com.alex.pojo.ForumComment;
 import org.apache.ibatis.annotations.*;
 import java.util.List;
+import java.util.Map;
 
 public interface ForumInteractionMapper {
     // ================= 评论模块 =================
@@ -34,4 +35,15 @@ public interface ForumInteractionMapper {
 
     @Delete("DELETE FROM user_follow WHERE follower_id = #{followerId} AND followed_id = #{followedId}")
     int removeFollow(@Param("followerId") int followerId, @Param("followedId") int followedId);
+
+    @Select("SELECT u.id, u.username, uf.create_time as followTime " +
+            "FROM user_follow uf JOIN user u ON uf.followed_id = u.id " +
+            "WHERE uf.follower_id = #{userId} ORDER BY uf.create_time DESC")
+    List<Map<String, Object>> getFollowingUsers(@Param("userId") int userId);
+
+    // ================= 收藏/点赞列表模块 =================
+    @Select("SELECT p.id, p.title, p.category, uf.create_time as favTime " +
+            "FROM user_favorite uf JOIN forum_post p ON uf.post_id = p.id " +
+            "WHERE uf.user_id = #{userId} ORDER BY uf.create_time DESC")
+    List<Map<String, Object>> getFavoritePosts(@Param("userId") int userId);
 }
