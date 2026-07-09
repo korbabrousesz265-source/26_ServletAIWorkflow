@@ -31,7 +31,7 @@ import java.time.Duration;
 @WebServlet("/chat")
 public class ChatServlet extends HttpServlet {
 
-    private static final String API_KEY = "sk-f7038d41ff93462caa28d588ae701864";
+//    private static final String API_KEY = "sk-f7038d41ff93462caa28d588ae701864";
     private static final String API_URL = "https://api.deepseek.com/chat/completions";
     // 👑 呼叫节点市场主厨
     private WfNodeMarketService nodeMarketService = new WfNodeMarketServiceImpl();
@@ -135,8 +135,23 @@ public class ChatServlet extends HttpServlet {
                     // ⏱️ 开启毫秒级测速
                     long startTime = System.currentTimeMillis();
 
-                    // 👑 接收复合返回结果 (文本 + Token)
-                    JsonObject aiResult = callRealAiApi(currentText, systemPrompt);
+                    // 👑 架构师核心：动态密钥路由策略
+                    // 优先级 1：读取用户自己在数据库里配置的私人 Key
+                    String finalApiKey = null;
+                    com.alex.pojo.SysApiKey userKey = apiKeyService.getApiKeyByUserId(userId);
+                    if (userKey != null && userKey.getDeepseekKey() != null && !userKey.getDeepseekKey().isEmpty()) {
+                        finalApiKey = userKey.getDeepseekKey();
+                    }
+                    // 优先级 2：如果用户没配置，读取服务器操作系统里的环境变量作为兜底系统 Key
+                    if (finalApiKey == null || finalApiKey.isEmpty()) {
+                        finalApiKey = System.getenv("SYS_AI_API_KEY");
+                    }
+
+                    // ⏱️ 开启毫秒级测速
+//                    long startTime = System.currentTimeMillis();
+
+                    // 传入动态选定的 Key
+                    JsonObject aiResult = callRealAiApi(currentText, systemPrompt, finalApiKey);
 
                     // 🐛 修复报错的核心：从 JsonObject 中拆解文本和消耗！
                     String aiResponse = aiResult.get("content").getAsString();
@@ -167,10 +182,18 @@ public class ChatServlet extends HttpServlet {
         req.getRequestDispatcher("/workflow.jsp").forward(req, resp);
     }
     // 👑 改造大模型调用底层：解析 JSON 中的 usage 字段，返回耗费 Token
-    private JsonObject callRealAiApi(String userText, String systemPrompt) {
+    // 👑 改造：接收外部传入的动态 apiKey，而不是用全局静态变量
+    private JsonObject callRealAiApi(String userText, String systemPrompt, String apiKey) {
+
         JsonObject result = new JsonObject();
         result.addProperty("content", "AI 接口调用失败");
         result.addProperty("tokens", 0); // 默认 0 Token
+
+        // 如果连兜底密钥都没有，直接拦截
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            result.addProperty("content", "系统或用户未配置 API Key，请先前往个人中心配置！");
+            return result;
+        }
 
         try {
             JsonObject requestBody = new JsonObject();
@@ -195,7 +218,8 @@ public class ChatServlet extends HttpServlet {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(API_URL))
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + API_KEY)
+                    // 👑 核心：使用传入的动态密钥
+                    .header("Authorization", "Bearer " + apiKey)
                     .timeout(Duration.ofMinutes(5))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody.toString(), java.nio.charset.StandardCharsets.UTF_8))
                     .build();
