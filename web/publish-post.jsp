@@ -19,6 +19,30 @@
         <div class="container-xl">
             <div class="row justify-content-center">
                 <div class="col-lg-8">
+
+                    <%-- 🔔 消息提示区域 --%>
+                    <c:if test="${not empty msg}">
+                        <div class="alert alert-important ${msg.contains('❌') ? 'alert-danger' : 'alert-success'}" role="alert">
+                            <div class="d-flex">
+                                <div>
+                                    <i class="ti ${msg.contains('❌') ? 'ti-alert-circle' : 'ti-check'} me-2 fs-2"></i>
+                                </div>
+                                <div class="fw-bold">${msg}</div>
+                            </div>
+                        </div>
+                    </c:if>
+                    <c:if test="${not empty sessionScope.msg}">
+                        <div class="alert alert-important ${sessionScope.msg.contains('❌') ? 'alert-danger' : 'alert-success'}" role="alert">
+                            <div class="d-flex">
+                                <div>
+                                    <i class="ti ${sessionScope.msg.contains('❌') ? 'ti-alert-circle' : 'ti-check'} me-2 fs-2"></i>
+                                </div>
+                                <div class="fw-bold">${sessionScope.msg}</div>
+                            </div>
+                        </div>
+                        <% session.removeAttribute("msg"); %>
+                    </c:if>
+
                     <form action="publish?action=add" method="post" class="card shadow-sm">
                         <div class="card-body">
                             <div class="mb-4">

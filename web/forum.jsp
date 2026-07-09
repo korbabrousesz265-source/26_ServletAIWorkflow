@@ -44,6 +44,21 @@
 
     <div class="page-body mt-3">
         <div class="container-xl">
+
+            <%-- 🔔 消息提示区域 --%>
+            <c:if test="${not empty sessionScope.msg}">
+                <div class="alert alert-important ${sessionScope.msg.contains('❌') ? 'alert-danger' : 'alert-success'} alert-dismissible" role="alert">
+                    <div class="d-flex">
+                        <div>
+                            <i class="ti ${sessionScope.msg.contains('❌') ? 'ti-alert-circle' : 'ti-check'} me-2 fs-2"></i>
+                        </div>
+                        <div class="fw-bold">${sessionScope.msg}</div>
+                    </div>
+                    <a class="btn-close" data-bs-dismiss="alert" aria-label="关闭"></a>
+                </div>
+                <% session.removeAttribute("msg"); %>
+            </c:if>
+
             <div class="row row-cards">
 
                 <c:forEach var="post" items="${postList}">
@@ -67,15 +82,15 @@
                             </div>
                             <div class="card-footer d-flex align-items-center bg-light">
                                 <span class="badge bg-primary-lt">${post.category}</span>
-                                <c:if test="${sessionScope.userId != null && post.authorId == sessionScope.userId}">
-                                    <div class="ms-auto">
-                                        <a href="javascript:void(0)"
-                                           class="btn btn-sm btn-outline-danger"
-                                           onclick="tablerConfirm('删除帖子', '确定要删除帖子「${post.title}」吗？此操作不可撤销。', function(){ location.href='forum?action=deletePost&id=${post.id}'; })">
-                                            <i class="ti ti-trash me-1"></i>删除
-                                        </a>
-                                    </div>
-                                </c:if>
+<%--                                <c:if test="${sessionScope.userId != null && post.authorId == sessionScope.userId}">--%>
+<%--                                    <div class="ms-auto">--%>
+<%--                                        <a href="javascript:void(0)"--%>
+<%--                                           class="btn btn-sm btn-outline-danger"--%>
+<%--                                           onclick="tablerConfirm('删除帖子', '确定要删除帖子「${post.title}」吗？此操作不可撤销。', function(){ location.href='forum?action=deletePost&id=${post.id}'; })">--%>
+<%--                                            <i class="ti ti-trash me-1"></i>删除--%>
+<%--                                        </a>--%>
+<%--                                    </div>--%>
+<%--                                </c:if>--%>
                             </div>
                         </a>
                     </div>

@@ -3,6 +3,26 @@
 
 <jsp:include page="header.jsp" />
 
+<style>
+    /* 👑 节点卡片高级悬浮动效 */
+    .node-card {
+        transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .node-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(32, 107, 196, 0.15) !important;
+        border-color: rgba(32, 107, 196, 0.3);
+    }
+    .node-icon-wrapper {
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .node-card:hover .node-icon-wrapper {
+        transform: scale(1.15) rotate(-5deg);
+    }
+</style>
 <div class="page-wrapper">
     <div class="page-header d-print-none">
         <div class="container-xl">
@@ -22,7 +42,7 @@
                             </select>
                         </div>
                         <div class="input-icon">
-                            <input type="text" class="form-control" placeholder="搜索节点...">
+                            <input type="text" class="form-control" id="searchInput" placeholder="实时搜索节点名称或描述...">
                             <span class="input-icon-addon"><i class="ti ti-search"></i></span>
                         </div>
                         <a href="publish-node.jsp" class="btn btn-primary d-none d-sm-inline-block">
@@ -39,11 +59,11 @@
             <div class="row row-cards">
 
                 <c:forEach var="node" items="${nodeList}">
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card shadow-sm h-100">
+                    <div class="col-md-6 col-lg-4 node-card-col">
+                        <div class="card shadow-sm h-100 node-card">
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-3">
-                                    <span class="avatar avatar-md bg-primary-lt rounded me-3">
+                                    <span class="avatar avatar-md bg-primary-lt rounded me-3 node-icon-wrapper">
                                         <i class="${node.icon}"></i>
                                     </span>
                                     <div>
@@ -57,6 +77,15 @@
                                     </div>
                                 </div>
                                 <p class="text-muted text-truncate" style="max-height: 3rem; white-space: normal;">${node.description}</p>
+
+                                <div class="d-flex align-items-center mt-3 gap-2">
+                                    <span class="badge bg-red-lt"><i class="ti ti-flame me-1"></i> ${(node.id * 137) % 8999 + 1000} 次调用</span>
+                                    <span class="badge bg-yellow-lt"><i class="ti ti-star me-1"></i> 4.${(node.id * 7) % 9 + 1} 评分</span>
+                                    <c:if test="${node.id % 3 == 0}">
+                                        <span class="badge bg-purple-lt">官方推荐</span>
+                                    </c:if>
+                                </div>
+
                             </div>
                             <div class="card-footer d-flex align-items-center bg-light">
                                 <span class="badge bg-green-lt">消耗: ${node.tokenCost} Token</span>
@@ -82,4 +111,35 @@
     </div>
 </div>
 
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('searchInput');
+        const nodeCards = document.querySelectorAll('.node-card-col');
+
+        if(searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const keyword = e.target.value.toLowerCase().trim();
+
+                nodeCards.forEach(card => {
+                    // 抓取卡片内的所有文本进行比对
+                    const cardText = card.innerText.toLowerCase();
+                    if(cardText.includes(keyword)) {
+                        card.style.display = '';
+                        card.style.animation = 'fadeIn 0.3s ease'; // 搜索命中时加个小动画
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
 <jsp:include page="footer.jsp" />

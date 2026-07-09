@@ -69,6 +69,12 @@ public class ChatServlet extends HttpServlet {
         Integer userId = (Integer) req.getSession().getAttribute("userId");
         if (userId == null) userId = 0;
 
+        // 👑 检查是否为 AJAX 请求（返回 JSON 供画布前端使用）
+        boolean isAjax = "true".equals(req.getParameter("ajax"));
+
+        // 用于 AJAX 模式下收集每个节点的执行结果
+        com.google.gson.JsonArray nodeResults = new com.google.gson.JsonArray();
+
         if (userText != null && !userText.isEmpty() && promptIds != null) {
             String currentText = userText;
             java.util.List<String> trajectoryLogs = new java.util.ArrayList<>();
@@ -76,6 +82,10 @@ public class ChatServlet extends HttpServlet {
 
             for (int i = 0; i < promptIds.length; i++) {
                 String pid = promptIds[i];
+                com.google.gson.JsonObject nodeResult = new com.google.gson.JsonObject();
+                nodeResult.addProperty("nodeIndex", i);
+                nodeResult.addProperty("nodeId", pid);
+
                 // 1. PPT 节点拦截逻辑 (本地沙箱，不消耗 Token)
                 if ("-1".equals(pid)) {
                     String jsonPayload = currentText;
@@ -96,15 +106,32 @@ public class ChatServlet extends HttpServlet {
                         log.setWorkflowName("AI 自动化流转");
                         log.setNodeName("导出为 PowerPoint");
                         log.setTokenUsed(0);
-                        log.setDuration(120); // 虚拟极速耗时
-                        logService.insertLog(log); // 👑 使用 Service 提交日志
+                        log.setDuration(120);
+                        logService.insertLog(log);
+
+                        nodeResult.addProperty("nodeName", "导出为 PowerPoint");
+                        nodeResult.addProperty("status", "done");
+                        nodeResult.addProperty("output", "PPT 渲染成功，正在下载...");
+                        nodeResult.addProperty("duration", 120);
+                        nodeResult.addProperty("tokens", 0);
+                        nodeResult.addProperty("isPPT", true);
+                        nodeResult.addProperty("pptData", jsonPayload);
+                    } else {
+                        nodeResult.addProperty("nodeName", "导出为 PowerPoint");
+                        nodeResult.addProperty("status", "error");
+                        nodeResult.addProperty("output", "未检测到有效的 JSON 数据，无法生成 PPT");
+                        nodeResult.addProperty("duration", 0);
+                        nodeResult.addProperty("tokens", 0);
+                        nodeResult.addProperty("isPPT", true);
                     }
+                    nodeResults.add(nodeResult);
                     continue;
                 }
 
                 // 2. AI 节点流转
                 WfNodeMarket nodeInfo = nodeMarketService.getNodeById(Integer.parseInt(pid));
                 if (nodeInfo != null) {
+                    nodeResult.addProperty("nodeName", nodeInfo.getName());
                     String systemPrompt = nodeInfo.getSystemPrompt();
 
                     // 🔧 PPT 智能注入：如果下一个节点是 PPT，自动注入模板结构
@@ -135,48 +162,70 @@ public class ChatServlet extends HttpServlet {
                     // ⏱️ 开启毫秒级测速
                     long startTime = System.currentTimeMillis();
 
-                    // 👑 架构师核心：动态密钥路由策略
-                    // 优先级 1：读取用户自己在数据库里配置的私人 Key
+                    // 👑 动态密钥路由策略
                     String finalApiKey = null;
                     com.alex.pojo.SysApiKey userKey = apiKeyService.getApiKeyByUserId(userId);
                     if (userKey != null && userKey.getDeepseekKey() != null && !userKey.getDeepseekKey().isEmpty()) {
                         finalApiKey = userKey.getDeepseekKey();
                     }
-                    // 优先级 2：如果用户没配置，读取服务器操作系统里的环境变量作为兜底系统 Key
                     if (finalApiKey == null || finalApiKey.isEmpty()) {
                         finalApiKey = System.getenv("SYS_AI_API_KEY");
                     }
 
-                    // ⏱️ 开启毫秒级测速
-//                    long startTime = System.currentTimeMillis();
-
                     // 传入动态选定的 Key
                     JsonObject aiResult = callRealAiApi(currentText, systemPrompt, finalApiKey);
 
-                    // 🐛 修复报错的核心：从 JsonObject 中拆解文本和消耗！
                     String aiResponse = aiResult.get("content").getAsString();
                     int tokens = aiResult.get("tokens").getAsInt();
                     int duration = (int) (System.currentTimeMillis() - startTime);
 
-                    // 💾 将实际消耗持久化到数据库
+                    // 💾 持久化日志
                     WfHistoryLog log = new WfHistoryLog();
                     log.setUserId(userId);
                     log.setWorkflowName("AI 自动化流转");
                     log.setNodeName(nodeInfo.getName());
                     log.setTokenUsed(tokens);
                     log.setDuration(duration);
-                    logService.insertLog(log); // 👑 使用 Service 提交日志
+                    logService.insertLog(log);
 
                     trajectoryLogs.add("✅ 【" + nodeInfo.getName() + "】执行完毕 [耗时: " + duration + "ms, 消耗: " + tokens + " Token]：\n" + aiResponse);
                     currentText = aiResponse;
                     finalResult = aiResponse;
+
+                    // AJAX 模式下收集单节点结果
+                    boolean isError = aiResponse.contains("AI 接口调用失败") || aiResponse.contains("系统异常");
+                    nodeResult.addProperty("status", isError ? "error" : "done");
+                    nodeResult.addProperty("output", aiResponse);
+                    nodeResult.addProperty("duration", duration);
+                    nodeResult.addProperty("tokens", tokens);
+                } else {
+                    nodeResult.addProperty("nodeName", "未知节点 (ID:" + pid + ")");
+                    nodeResult.addProperty("status", "error");
+                    nodeResult.addProperty("output", "节点不存在或已被删除");
+                    nodeResult.addProperty("duration", 0);
+                    nodeResult.addProperty("tokens", 0);
                 }
+                nodeResults.add(nodeResult);
             }
 
             req.setAttribute("trajectoryLogs", trajectoryLogs);
             req.setAttribute("finalResult", finalResult);
-            // 同样用 Service 把供下次拖拽的左侧节点列表传回前端
             req.setAttribute("templates", nodeMarketService.getAllNodes());
+        }
+
+        // 👑 AJAX 模式：返回 JSON，不走 JSP 渲染
+        if (isAjax) {
+            resp.setContentType("application/json;charset=UTF-8");
+            com.google.gson.JsonObject responseJson = new com.google.gson.JsonObject();
+            responseJson.add("nodeResults", nodeResults);
+            responseJson.addProperty("finalResult", req.getAttribute("finalResult") != null
+                    ? req.getAttribute("finalResult").toString() : "");
+            responseJson.addProperty("autoTriggerPPT", req.getAttribute("autoTriggerPPT") != null
+                    ? req.getAttribute("autoTriggerPPT").toString() : "");
+            java.io.PrintWriter out = resp.getWriter();
+            out.write(responseJson.toString());
+            out.flush();
+            return; // 不执行 forward，直接结束
         }
 
         req.getRequestDispatcher("/workflow.jsp").forward(req, resp);
