@@ -115,7 +115,20 @@
                             </div>
                         </a>
 
-                        <a href="/admin/posts" class="card text-decoration-none smooth-panel-card mb-3 shadow-none">
+                        <a href="/admin/nodes?action=index" class="card text-decoration-none smooth-panel-card mb-2 shadow-none">
+                            <div class="card-body p-3 d-flex align-items-center">
+                                <div class="icon-box-accent rounded bg-purple-lt me-3">
+                                    <i class="ti ti-box fs-2"></i>
+                                </div>
+                                <div class="flex-fill">
+                                    <div class="font-weight-medium text-dark">AI 节点资产审核</div>
+                                    <div class="text-muted" style="font-size: 12px;">审核全站节点库，下架违规或低质量节点</div>
+                                </div>
+                                <i class="ti ti-chevron-right text-muted fs-3 ms-2"></i>
+                            </div>
+                        </a>
+
+                        <a href="/admin/posts" class="card text-decoration-none smooth-panel-card mb-2 shadow-none">
                             <div class="card-body p-3 d-flex align-items-center">
                                 <div class="icon-box-accent rounded bg-indigo-lt me-3">
                                     <i class="ti ti-article fs-2"></i>
@@ -123,6 +136,19 @@
                                 <div class="flex-fill">
                                     <div class="font-weight-medium text-dark">社区共享资产审计</div>
                                     <div class="text-muted" style="font-size: 12px;">管理已发布的流图JSON快照记录</div>
+                                </div>
+                                <i class="ti ti-chevron-right text-muted fs-3 ms-2"></i>
+                            </div>
+                        </a>
+
+                        <a href="/admin/broadcast?action=index" class="card text-decoration-none smooth-panel-card mb-3 shadow-none">
+                            <div class="card-body p-3 d-flex align-items-center">
+                                <div class="icon-box-accent rounded bg-yellow-lt me-3">
+                                    <i class="ti ti-speakerphone fs-2"></i>
+                                </div>
+                                <div class="flex-fill">
+                                    <div class="font-weight-medium text-dark">全站广播与触达中心</div>
+                                    <div class="text-muted" style="font-size: 12px;">向全体用户推送公告或定向发送站内信</div>
                                 </div>
                                 <i class="ti ti-chevron-right text-muted fs-3 ms-2"></i>
                             </div>

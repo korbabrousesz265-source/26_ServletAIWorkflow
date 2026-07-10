@@ -130,5 +130,108 @@
         modalInstance.show();
     }
 </script>
+
+<!-- 🔔 未读消息顶部浮窗 -->
+<style>
+    .unread-float-bar {
+        position: fixed;
+        top: -80px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        max-width: 600px;
+        width: 90%;
+        background: #ffffff;
+        border: 1px solid #dce1e7;
+        border-radius: 10px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        padding: 14px 18px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        cursor: pointer;
+    }
+    .unread-float-bar.show { top: 16px; }
+    .unread-float-bar .float-icon {
+        font-size: 28px;
+        flex-shrink: 0;
+        width: 44px; height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+    }
+    .unread-float-bar .float-icon.icon-blue { background: #e8f0fe; color: #206bc4; }
+    .unread-float-bar .float-icon.icon-red { background: #fde8e8; color: #d63939; }
+    .unread-float-bar .float-icon.icon-green { background: #e6f7e6; color: #2fb344; }
+    .unread-float-bar .float-icon.icon-yellow { background: #fef3e0; color: #f59f00; }
+    .unread-float-bar .float-body { flex: 1; min-width: 0; }
+    .unread-float-bar .float-title { font-weight: 700; font-size: 15px; color: #1e293b; margin-bottom: 2px; }
+    .unread-float-bar .float-content { font-size: 13px; color: #6c757d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
+    .unread-float-bar .float-close {
+        flex-shrink: 0;
+        background: none; border: none;
+        color: #adb5bd; font-size: 18px;
+        cursor: pointer; padding: 2px 6px;
+        line-height: 1;
+    }
+    .unread-float-bar .float-close:hover { color: #495057; }
+</style>
+
+<script>
+(function() {
+    fetch('/messages?action=latestUnread')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.hasMsg) return;
+
+            var iconColor = 'icon-blue';
+            if (data.icon) {
+                if (data.icon.indexOf('alert') >= 0 || data.icon.indexOf('warning') >= 0) iconColor = 'icon-red';
+                else if (data.icon.indexOf('gift') >= 0 || data.icon.indexOf('check') >= 0 || data.icon.indexOf('coin') >= 0) iconColor = 'icon-green';
+                else if (data.icon.indexOf('star') >= 0 || data.icon.indexOf('rocket') >= 0) iconColor = 'icon-yellow';
+            }
+
+            var iconName = data.icon || 'bell';
+            var iconMap = { 'thumb-up': 'thumb-up', 'message-2': 'message-2', 'bell-ring': 'bell-ring',
+                'speakerphone': 'speakerphone', 'gift': 'gift', 'star': 'star', 'rocket': 'rocket',
+                'shield-check': 'shield-check', 'coin': 'coin', 'tools': 'tools', 'check': 'check' };
+            iconName = iconMap[iconName] || 'bell';
+
+            var bar = document.createElement('div');
+            bar.className = 'unread-float-bar';
+            bar.innerHTML =
+                '<div class="float-icon ' + iconColor + '"><i class="ti ti-' + iconName + ' fs-2"></i></div>' +
+                '<div class="float-body">' +
+                '<div class="float-title">' + escapeHtml(data.title) + '</div>' +
+                '<div class="float-content">' + escapeHtml(data.content) + '</div>' +
+                '</div>' +
+                '<button class="float-close">&times;</button>';
+
+            document.body.appendChild(bar);
+
+            setTimeout(function() { bar.classList.add('show'); }, 300);
+
+            bar.querySelector('.float-close').addEventListener('click', function(e) {
+                e.stopPropagation();
+                bar.classList.remove('show');
+                setTimeout(function() { if (bar.parentNode) bar.remove(); }, 500);
+            });
+
+            bar.addEventListener('click', function() {
+                if (data.link) window.location.href = data.link;
+            });
+
+            setTimeout(function() {
+                if (bar.parentNode) {
+                    bar.classList.remove('show');
+                    setTimeout(function() { if (bar.parentNode) bar.remove(); }, 500);
+                }
+            }, 6000);
+        })
+        .catch(function() {});
+})();
+</script>
 </body>
 </html>

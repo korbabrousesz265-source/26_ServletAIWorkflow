@@ -17,6 +17,13 @@ public class WfNodeMarketServiceImpl implements WfNodeMarketService {
     }
 
     @Override
+    public List<WfNodeMarket> getApprovedNodes() {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            return sqlSession.getMapper(WfNodeMarketMapper.class).getApprovedNodes();
+        }
+    }
+
+    @Override
     public WfNodeMarket getNodeById(int id) {
         try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
             return sqlSession.getMapper(WfNodeMarketMapper.class).getNodeById(id);
@@ -27,7 +34,7 @@ public class WfNodeMarketServiceImpl implements WfNodeMarketService {
     public boolean insertNode(WfNodeMarket node) {
         try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
             int rows = sqlSession.getMapper(WfNodeMarketMapper.class).insertNode(node);
-            sqlSession.commit(); // 🚨 发布节点属于写操作，必须 commit!
+            sqlSession.commit();
             return rows > 0;
         } catch (Exception e) {
             e.printStackTrace();
@@ -39,6 +46,18 @@ public class WfNodeMarketServiceImpl implements WfNodeMarketService {
     public boolean deleteNodeById(int id) {
         try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
             int rows = sqlSession.getMapper(WfNodeMarketMapper.class).deleteNodeById(id);
+            sqlSession.commit();
+            return rows > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
+    public boolean updateNodeStatus(int id, int status) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            int rows = sqlSession.getMapper(WfNodeMarketMapper.class).updateNodeStatus(id, status);
             sqlSession.commit();
             return rows > 0;
         } catch (Exception e) {

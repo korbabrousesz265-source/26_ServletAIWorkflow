@@ -43,7 +43,7 @@ public class ChatServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         // 极其纯净的一行获取数据代码
-        req.setAttribute("templates", nodeMarketService.getAllNodes());
+        req.setAttribute("templates", nodeMarketService.getApprovedNodes());
 
         // 🔑 检查用户是否已配置 API Key
         Integer userId = (Integer) req.getSession().getAttribute("userId");
@@ -210,7 +210,7 @@ public class ChatServlet extends HttpServlet {
 
             req.setAttribute("trajectoryLogs", trajectoryLogs);
             req.setAttribute("finalResult", finalResult);
-            req.setAttribute("templates", nodeMarketService.getAllNodes());
+            req.setAttribute("templates", nodeMarketService.getApprovedNodes());
         }
 
         // 👑 AJAX 模式：返回 JSON，不走 JSP 渲染

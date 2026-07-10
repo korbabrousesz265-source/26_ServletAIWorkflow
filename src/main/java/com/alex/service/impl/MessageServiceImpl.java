@@ -53,4 +53,23 @@ public class MessageServiceImpl implements MessageService {
             return false;
         }
     }
+
+    @Override
+    public int broadcastToAll(Message message) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            int rows = sqlSession.getMapper(MessageMapper.class).broadcastToAllUsers(message);
+            sqlSession.commit();
+            return rows;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    @Override
+    public Message getLatestUnread(int userId) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            return sqlSession.getMapper(MessageMapper.class).getLatestUnread(userId);
+        }
+    }
 }

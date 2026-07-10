@@ -12,11 +12,21 @@ public class AdminPostServlet extends BaseServlet {
     private ForumService forumService = new ForumServiceImpl();
 
     protected String index(HttpServletRequest request, HttpServletResponse response) {
+        Integer roleId = (Integer) request.getSession().getAttribute("roleId");
+        if (roleId == null || roleId > 2) {
+            request.getSession().setAttribute("msg", "❌ 权限不足：仅管理员可访问");
+            return "redirect:/chat";
+        }
         request.setAttribute("allPosts", forumService.selectAllPostsForAdmin());
         return "/admin-posts.jsp";
     }
 
     protected String delete(HttpServletRequest request, HttpServletResponse response) {
+        Integer roleId = (Integer) request.getSession().getAttribute("roleId");
+        if (roleId == null || roleId > 2) {
+            request.getSession().setAttribute("msg", "❌ 权限不足");
+            return "redirect:/chat";
+        }
         int id = Integer.parseInt(request.getParameter("id"));
 
         if (forumService.deletePostById(id)) {

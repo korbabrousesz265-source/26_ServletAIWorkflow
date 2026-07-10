@@ -59,7 +59,41 @@ public class MessageServlet extends BaseServlet {
         return null; // 自己处理了响应，基类无需再转发
     }
 
-    // 4. 👑 管理员发送系统消息给指定用户
+    // 4. 🔔 AJAX 获取最新一条未读消息（首页浮窗通知）
+    protected String latestUnread(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        Integer userId = (Integer) request.getSession().getAttribute("userId");
+        response.setContentType("application/json;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+
+        if (userId == null) {
+            out.write("{\"hasMsg\":false}");
+            out.flush();
+            return null;
+        }
+
+        Message msg = messageService.getLatestUnread(userId);
+        if (msg != null) {
+            // 手动构建 JSON，避免 Gson 依赖问题
+            out.write("{\"hasMsg\":true," +
+                    "\"id\":" + msg.getId() + "," +
+                    "\"title\":\"" + escapeJson(msg.getTitle()) + "\"," +
+                    "\"content\":\"" + escapeJson(msg.getContent()) + "\"," +
+                    "\"icon\":\"" + escapeJson(msg.getIcon()) + "\"," +
+                    "\"type\":\"" + escapeJson(msg.getType()) + "\"," +
+                    "\"link\":\"" + escapeJson(msg.getLink()) + "\"}");
+        } else {
+            out.write("{\"hasMsg\":false}");
+        }
+        out.flush();
+        return null;
+    }
+
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
+    }
+
+    // 5. 👑 管理员发送系统消息给指定用户
     protected String sendSystemMsg(HttpServletRequest request, HttpServletResponse response) {
         Integer adminId = (Integer) request.getSession().getAttribute("userId");
         if (adminId == null) return "redirect:login.jsp";

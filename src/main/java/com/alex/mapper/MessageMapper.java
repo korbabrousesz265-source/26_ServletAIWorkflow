@@ -44,4 +44,18 @@ public interface MessageMapper {
      */
     @Update("UPDATE sys_message SET is_read = 1 WHERE user_id = #{userId} AND is_read = 0")
     int markAllAsRead(@Param("userId") int userId);
+
+    /**
+     * 📢 全站广播：一次 SQL 向所有用户插入同一条消息
+     */
+    @Insert("INSERT INTO sys_message(user_id, type, icon, title, content, link, create_time, is_read) " +
+            "SELECT id, #{type}, #{icon}, #{title}, #{content}, #{link}, NOW(), 0 FROM user")
+    int broadcastToAllUsers(Message message);
+
+    /**
+     * 🔔 获取用户最新一条未读消息（用于首页浮窗通知）
+     */
+    @Select("SELECT * FROM sys_message WHERE user_id = #{userId} AND is_read = 0 " +
+            "ORDER BY create_time DESC LIMIT 1")
+    Message getLatestUnread(@Param("userId") int userId);
 }

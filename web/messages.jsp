@@ -50,6 +50,21 @@
                                         <i class="ti ti-alert-triangle me-1"></i>系统
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a class="nav-link ${currentType == 'announcement' ? 'active' : ''}" href="messages?action=index&type=announcement">
+                                        <i class="ti ti-speakerphone me-1"></i>公告
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link ${currentType == 'warning' ? 'active' : ''}" href="messages?action=index&type=warning">
+                                        <i class="ti ti-alert-triangle me-1"></i>警告
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link ${currentType == 'reward' ? 'active' : ''}" href="messages?action=index&type=reward">
+                                        <i class="ti ti-gift me-1"></i>福利
+                                    </a>
+                                </li>
                             </ul>
                         </div>
                     </div>
