@@ -46,4 +46,30 @@ public class WfNodeMarketServiceImpl implements WfNodeMarketService {
             return false;
         }
     }
+
+    @Override
+    public List<WfNodeMarket> getAllNodesForAdmin() {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            return sqlSession.getMapper(WfNodeMarketMapper.class).getAllNodesForAdmin();
+        }
+    }
+
+    @Override
+    public List<WfNodeMarket> getNodesByStatus(int status) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            return sqlSession.getMapper(WfNodeMarketMapper.class).getNodesByStatus(status);
+        }
+    }
+
+    @Override
+    public boolean updateNodeStatus(int id, int status) {
+        try (SqlSession sqlSession = MyBatisUtil.getSqlSession()) {
+            int rows = sqlSession.getMapper(WfNodeMarketMapper.class).updateNodeStatus(id, status);
+            sqlSession.commit();
+            return rows > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

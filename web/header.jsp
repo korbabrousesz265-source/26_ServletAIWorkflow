@@ -125,6 +125,13 @@
                                 <a class="dropdown-item" href="/security-dash">
                                     <i class="ti ti-shield-lock me-2 text-muted"></i> API 监控看板
                                 </a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="/admin/node-review?action=index">
+                                    <i class="ti ti-shield-check me-2 text-purple"></i> 节点审核中心
+                                </a>
+                                <a class="dropdown-item" href="/admin/broadcast?action=index">
+                                    <i class="ti ti-speakerphone me-2 text-blue"></i> 全站广播触达
+                                </a>
                             </div>
                         </li>
 

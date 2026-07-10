@@ -68,11 +68,21 @@
                             <small class="form-hint mt-2">提示：请使用 Markdown 语法排版，指令越清晰，节点运行效果越好。该指令对所有使用者可见。</small>
                         </div>
 
+                        <div class="alert alert-important alert-warning mt-4 mb-0" role="alert">
+                            <div class="d-flex">
+                                <div><i class="ti ti-shield-check me-2 fs-2"></i></div>
+                                <div>
+                                    <strong>🛡️ 审核提示：</strong>提交后节点将进入<strong>管理员审核流程</strong>，审核通过后才会在节点市场公开展示。
+                                    请确保 System Prompt 不包含违规内容和 Prompt 注入攻击指令。
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                     <div class="card-footer bg-light text-end p-4">
                         <a href="node-market" class="btn btn-link link-secondary">取消</a>
                         <button type="submit" class="btn btn-primary ms-3 px-4">
-                            <i class="ti ti-rocket me-2"></i> 提交发布
+                            <i class="ti ti-rocket me-2"></i> 提交审核
                         </button>
                     </div>
                 </form>

@@ -37,6 +37,7 @@ public class WfNodeMarket {
 
     private String createTime;
     private String authorName; // 关联查询出的用户名
+    private int status; // 0:待审核, 1:已通过, 2:已驳回
 
 
     public WfNodeMarket() {}
@@ -58,4 +59,6 @@ public class WfNodeMarket {
 
 
     public void setSystemPrompt(String systemPrompt) {        this.systemPrompt = systemPrompt;    }
+    public int getStatus() { return status; }
+    public void setStatus(int status) { this.status = status; }
 }

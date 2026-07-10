@@ -54,11 +54,10 @@ public class NodeMarketServlet extends BaseServlet {
         int cost = (tokenCostStr != null && !tokenCostStr.trim().isEmpty()) ? Integer.parseInt(tokenCostStr) : 500;
         node.setTokenCost(cost);
 
-        node.setTokenCost(Integer.parseInt(request.getParameter("tokenCost")));
         node.setAuthorId(userId);
 
         if (nodeMarketService.insertNode(node)) {
-            request.getSession().setAttribute("msg", "🎉 恭喜！你的自定义 AI 节点已成功发布到市场！");
+            request.getSession().setAttribute("msg", "🎉 提交成功！你的自定义 AI 节点已提交，等待管理员审核通过后即可在前端市场展示。");
         } else {
             request.getSession().setAttribute("msg", "❌ 发布失败，请检查输入格式。");
         }
