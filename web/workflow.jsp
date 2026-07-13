@@ -8,8 +8,9 @@
     .canvas-viewport {
         position: relative;
         width: 100%;
-        height: 65vh;
-        min-height: 500px;
+        /* 👑 改为 75vh 或更高，让画板霸占屏幕 */
+        height: 75vh;
+        min-height: 600px;
         overflow: hidden;
         background: #f8f9fb;
         border: 1px solid #dce1e7;
@@ -422,194 +423,229 @@
         outline: none;
         box-shadow: 0 0 0 3px rgba(32, 107, 196, 0.1);
     }
+    /* 👑 ComfyUI 风格右键菜单 */
+    .comfy-context-menu {
+        position: fixed;
+        width: 240px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0,0,0,0.1);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        border-radius: 8px;
+        z-index: 9999;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transform-origin: top left;
+        animation: menuFadeIn 0.15s ease-out;
+    }
+    @keyframes menuFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    .comfy-context-search {
+        padding: 8px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .comfy-context-search input {
+        width: 100%;
+        padding: 6px 10px;
+        background: #f8f9fa;
+        border: 1px solid #dce1e7;
+        border-radius: 4px;
+        font-size: 12px;
+        outline: none;
+    }
+    .comfy-context-search input:focus { border-color: #206bc4; }
+    .comfy-context-list {
+        max-height: 250px;
+        overflow-y: auto;
+        padding: 4px;
+    }
+    .comfy-context-item {
+        padding: 8px 10px;
+        border-radius: 4px;
+        font-size: 13px;
+        color: #1e293b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .comfy-context-item:hover { background: #206bc4; color: #fff; }
+    .comfy-context-item:hover .ti { color: #fff !important; }
+    /* 👑 沉浸式无边界画板 */
+    .canvas-viewport {
+        position: relative;
+        width: 100%;
+        /* 霸占除了顶部导航栏之外的所有屏幕空间 */
+        height: calc(100vh - 60px);
+        min-height: 600px;
+        overflow: hidden;
+        background: #f0f2f5; /* 更柔和的极客灰底色 */
+        border: none;
+        border-radius: 0;
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    /* 👑 悬浮毛玻璃输入舱 (代替原本占空间的初始输入区) */
+    .floating-input-panel {
+        position: absolute;
+        top: 24px;
+        left: 24px;
+        width: 340px;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        z-index: 40;
+        padding: 20px;
+        transition: transform 0.3s ease;
+    }
+    .floating-input-panel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.12);
+    }
+    .floating-input-panel textarea {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 10px;
+    }
+    .floating-input-panel textarea:focus {
+        background: #fff;
+    }
+
+    /* 👑 底部中央的悬浮控制台 (代替原本在下方的按钮) */
+    .floating-action-bar {
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(20px);
+        padding: 8px 12px;
+        border-radius: 100px;
+        box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+        border: 1px solid rgba(255,255,255,0.8);
+    }
+    .floating-action-bar .btn {
+        border-radius: 100px;
+        padding: 10px 24px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .floating-action-bar .btn-primary { background: #206bc4; border: none; }
+    .floating-action-bar .btn-primary:hover { background: #1a569d; transform: scale(1.02); }
 </style>
 
+<!-- 👑 潜伏的右键菜单 DOM -->
+<div id="comfyContextMenu" class="comfy-context-menu" style="display: none;">
+    <div class="comfy-context-search">
+        <input type="text" id="contextSearchInput" placeholder="搜索节点 (Search...)">
+    </div>
+    <div class="comfy-context-list" id="contextMenuList">
+        <!-- AI 节点 -->
+        <c:forEach var="tpl" items="${templates}">
+            <div class="comfy-context-item" data-id="${tpl.id}" data-name="${tpl.name}" data-icon="${tpl.icon}">
+                <i class="ti ${tpl.icon} text-primary"></i> ${tpl.name}
+            </div>
+        </c:forEach>
+        <!-- 插件节点 -->
+        <div class="comfy-context-item" style="border-top: 1px solid #eee; margin-top: 4px;" data-id="-1" data-name="导出为 PowerPoint" data-icon="ti ti-file-powerpoint">
+            <i class="ti ti-file-powerpoint text-warning"></i> 导出为 PowerPoint
+        </div>
+    </div>
+</div>
+
 <div class="page-wrapper">
-    <%-- 🔑 API Key 未配置警告 --%>
+    <%-- 🔑 悬浮 API Key 警告 (绝对定位在顶部正中) --%>
     <c:if test="${showApiKeyWarning}">
-        <div class="container-xl mt-3">
-            <div class="alert alert-warning alert-dismissible shadow-sm" role="alert">
+        <div class="position-absolute top-0 start-50 translate-middle-x mt-3 w-50" style="z-index: 1000;">
+            <div class="alert alert-warning shadow-lg border-0 rounded-4" role="alert">
                 <div class="d-flex align-items-center">
-                    <div class="me-3"><i class="ti ti-alert-triangle fs-1 text-warning"></i></div>
-                    <div>
-                        <h4 class="alert-title">⚠️ 尚未配置 API 密钥</h4>
-                        <div class="text-muted">
-                            你还没有配置个人 API Key，工作流将使用系统默认密钥运行。
-                            为了获得更稳定的服务，建议前往
-                            <a href="profile?action=index" class="btn btn-warning btn-sm ms-2 fw-bold">
-                                <i class="ti ti-key me-1"></i>配置我的 API Key
-                            </a>
-                        </div>
-                    </div>
+                    <div class="me-3"><i class="ti ti-alert-triangle fs-2 text-warning"></i></div>
+                    <div class="flex-fill">尚未配置 API 密钥，将使用系统公共算力。</div>
+                    <a href="profile?action=index" class="btn btn-warning btn-sm fw-bold rounded-pill">前往配置</a>
+                    <a class="btn-close ms-3" data-bs-dismiss="alert" aria-label="close"></a>
                 </div>
-                <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
             </div>
         </div>
     </c:if>
 
-    <div class="page-header d-print-none">
-        <div class="container-xl">
-            <div class="row g-2 align-items-center">
-                <div class="col"><h2 class="page-title">AI 工作流中心</h2></div>
+    <%-- 👑 无边界沉浸式画布 --%>
+    <div class="canvas-viewport" id="canvasViewport">
+
+        <!-- 1. 悬浮的左上角输入舱 -->
+        <div class="floating-input-panel">
+            <div class="d-flex align-items-center mb-3">
+                <div class="bg-primary text-white rounded p-1 me-2"><i class="ti ti-terminal-2"></i></div>
+                <h3 class="m-0 fw-bold">全局初始任务</h3>
             </div>
+            <textarea id="userTextInput" rows="4" placeholder="在此输入需要抛入工作流的文本内容...">${param.userText}</textarea>
+            <div class="text-muted mt-2" style="font-size: 11px;">
+                <i class="ti ti-info-circle me-1"></i> 右键呼出节点面板 · 滚轮缩放画布
+            </div>
+        </div>
+
+        <!-- 2. 悬浮右上角：工具箱唤醒球 -->
+        <button class="btn btn-dark btn-icon rounded-circle position-absolute bottom-0 start-0 m-4 shadow-lg" style="z-index: 50; width: 54px; height: 54px;" data-bs-toggle="offcanvas" data-bs-target="#toolboxOffcanvas" title="打开工具箱">
+            <i class="ti ti-box fs-2"></i>
+        </button>
+
+        <!-- 3. 悬浮底边中：执行引擎飞船 -->
+        <div class="floating-action-bar">
+            <button class="btn btn-primary" id="btnExecute" onclick="executeWorkflow()">
+                <i class="ti ti-player-play me-2"></i> 启动引擎 (Run)
+            </button>
+            <button class="btn btn-danger" onclick="stopExecution()" id="btnStop" style="display:none;">
+                <i class="ti ti-square-rounded me-2"></i> 紧急停机
+            </button>
+            <div style="width: 1px; height: 24px; background: #dee2e6; margin: 0 4px;"></div>
+            <!-- 呼出底部终端的按钮 -->
+            <button class="btn btn-light text-dark" data-bs-toggle="offcanvas" data-bs-target="#outputOffcanvas">
+                <i class="ti ti-layout-bottombar text-primary me-2"></i> 终端输出
+            </button>
+        </div>
+
+        <!-- 底层画板世界 -->
+        <div class="canvas-world" id="canvasWorld">
+            <div class="canvas-grid"></div>
+        </div>
+
+        <!-- 缩放控件也改成极简风格 -->
+        <div class="zoom-controls">
+            <button onclick="zoomIn()" title="放大">+</button>
+            <div class="zoom-label" id="zoomLabel">100%</div>
+            <button onclick="zoomOut()" title="缩小">−</button>
+            <button onclick="resetView()" title="适应画布" style="font-size:14px;">⊞</button>
         </div>
     </div>
+</div>
 
-    <div class="page-body">
-        <div class="container-xl">
-            <div class="row g-3">
-
-                <%-- ========== 左侧节点面板 ========== --%>
-                <div class="col-12 col-lg-2 order-lg-1">
-                    <div class="d-flex flex-column gap-3">
-
-                        <%-- 工具栏按钮 --%>
-                        <div class="canvas-toolbar d-flex flex-wrap gap-2">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="saveToLocalCache()" title="保存到浏览器">
-                                <i class="ti ti-device-floppy me-1"></i> 暂存
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="exportToFile()" title="导出 JSON">
-                                <i class="ti ti-download me-1"></i> 导出
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('importJsonInput').click()" title="导入 JSON">
-                                <i class="ti ti-upload me-1"></i> 导入
-                            </button>
-                            <input type="file" id="importJsonInput" style="display:none" accept=".json" onchange="importFromFile(event)">
-                            <button class="btn btn-sm btn-outline-danger" onclick="clearCanvas()" title="清空画板">
-                                <i class="ti ti-trash me-1"></i>
-                            </button>
-                        </div>
-
-                        <%-- 节点面板 --%>
-                        <div class="node-palette">
-                            <div class="palette-header">
-                                <i class="ti ti-box text-primary"></i> AI 算力节点
-                            </div>
-                            <div class="palette-search">
-                                <input type="text" id="paletteSearch" placeholder="搜索节点..." oninput="filterPalette()">
-                            </div>
-                            <div class="palette-list" id="paletteList">
-                                <c:forEach var="tpl" items="${templates}">
-                                    <div class="palette-item" data-node-id="${tpl.id}" data-node-name="${tpl.name}" data-node-desc="${tpl.description}" data-node-icon="${tpl.icon}">
-                                        <i class="pi-icon ${tpl.icon}"></i>
-                                        <div class="pi-info">
-                                            <div class="pi-name">${tpl.name}</div>
-                                            <div class="pi-desc">${tpl.description}</div>
-                                        </div>
-                                    </div>
-                                </c:forEach>
-                            </div>
-                        </div>
-
-                        <%-- 插件节点面板 --%>
-                        <div class="node-palette">
-                            <div class="palette-header">
-                                <i class="ti ti-plug text-warning"></i> 插件节点
-                            </div>
-                            <div class="palette-list">
-                                <div class="palette-item ppt-item" data-node-id="-1" data-node-name="导出为 PowerPoint" data-node-desc="将 AI 生成的 JSON 渲染为 .pptx 文件并下载" data-node-icon="ti ti-file-powerpoint">
-                                    <i class="pi-icon ti ti-file-powerpoint text-warning"></i>
-                                    <div class="pi-info">
-                                        <div class="pi-name">导出为 PowerPoint</div>
-                                        <div class="pi-desc">渲染 JSON → .pptx 下载</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <%-- 本地暂存列表 --%>
-                        <div class="card shadow-sm border-primary" style="border-top: 2px solid #206bc4;">
-                            <div class="card-header bg-light py-2">
-                                <h3 class="card-title"><i class="ti ti-history me-2 text-primary"></i> 本地暂存</h3>
-                            </div>
-                            <div class="list-group list-group-flush" id="localWorkflowList" style="max-height: 200px; overflow-y: auto;">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <%-- ========== 画布区域 ========== --%>
-                <div class="col-12 col-lg-7 order-lg-2">
-                    <%-- 初始输入 --%>
-                    <div class="initial-input-area mb-3">
-                        <label class="form-label text-muted mb-2 fw-bold">
-                            <i class="ti ti-edit me-1"></i> 初始任务内容
-                        </label>
-                        <textarea id="userTextInput" rows="2" placeholder="在此输入需要第一步处理的文本...">${param.userText}</textarea>
-                    </div>
-
-                    <%-- 画布 --%>
-                    <div class="canvas-viewport" id="canvasViewport">
-                        <div class="canvas-world" id="canvasWorld">
-                            <div class="canvas-grid"></div>
-                        </div>
-                        <div class="canvas-hint" id="canvasHint">🖱️ 点击左侧节点添加到画布 | 滚轮缩放 | 拖拽空白平移 | 拖拽节点交换顺序</div>
-                        <div class="zoom-controls">
-                            <button onclick="zoomIn()" title="放大">+</button>
-                            <div class="zoom-label" id="zoomLabel">100%</div>
-                            <button onclick="zoomOut()" title="缩小">−</button>
-                            <button onclick="resetView()" title="适应画布" style="font-size:14px;">⊞</button>
-                        </div>
-                    </div>
-
-                    <%-- 执行按钮 --%>
-                    <div class="d-flex gap-2 mt-3">
-                        <button class="btn btn-primary btn-lg flex-fill fw-bold" id="btnExecute" onclick="executeWorkflow()">
-                            <i class="ti ti-player-play me-2"></i> 启动自动化流转
-                        </button>
-                        <button class="btn btn-outline-secondary btn-lg" onclick="stopExecution()" id="btnStop" style="display:none;" title="停止执行">
-                            <i class="ti ti-player-stop"></i>
-                        </button>
-                    </div>
-
-                    <%-- 最终输出面板 --%>
-                    <div class="final-output-panel" id="finalOutputPanel" style="display:none;">
-                        <div class="output-header" onclick="toggleFinalOutput()">
-                            <i class="ti ti-file-text text-primary"></i>
-                            <span>最终输出结果</span>
-                            <span class="ms-auto text-muted" style="font-size:12px;" id="outputMeta"></span>
-                            <i class="ti ti-chevron-down ms-2" id="finalOutputChevron"></i>
-                        </div>
-                        <div class="p-3" id="finalOutputBody">
-                            <div id="markdown-viewer" class="bg-light p-4 rounded-2" style="min-height: 120px; max-height: 400px; overflow-y: auto; font-size: 14px; border: 1px solid #e5e7eb;">
-                                <div class="text-muted text-center py-4">暂无输出，请在画布上编排节点并启动工作流。</div>
-                            </div>
-                            <textarea id="finalResultBox" style="display:none;"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <%-- ========== 右侧帮助面板 ========== --%>
-                <div class="col-12 col-lg-3 order-lg-3">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-light">
-                            <h3 class="card-title"><i class="ti ti-info-circle me-2 text-primary"></i> 操作指南</h3>
-                        </div>
-                        <div class="card-body" style="font-size:13px;">
-                            <div class="mb-3">
-                                <strong class="text-primary">1.</strong> 从<b>左侧面板点击</b>节点添加到画布
-                            </div>
-                            <div class="mb-3">
-                                <strong class="text-primary">2.</strong> 节点自动<b>首尾拼接</b>成处理管道
-                            </div>
-                            <div class="mb-3">
-                                <strong class="text-primary">3.</strong> <b>拖拽节点</b>到另一个节点上可交换顺序
-                            </div>
-                            <div class="mb-3">
-                                <strong class="text-primary">4.</strong> 填入<b>初始任务内容</b>，点击「启动」
-                            </div>
-                            <div class="mb-3">
-                                <strong class="text-primary">5.</strong> 执行完成后<b>点击节点</b>查看输出
-                            </div>
-                            <div class="text-muted">
-                                <i class="ti ti-mouse me-1"></i> 滚轮缩放 · 拖拽空白平移
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+<!-- 👑 动态底部抽屉 (代替原本在下方的输出结果面板) -->
+<div class="offcanvas offcanvas-bottom" tabindex="-1" id="outputOffcanvas" style="height: 55vh; border-radius: 24px 24px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.1);">
+    <div class="offcanvas-header bg-dark text-white" style="border-radius: 24px 24px 0 0;">
+        <h3 class="offcanvas-title fw-bold"><i class="ti ti-terminal-2 text-green me-2"></i> Execution Output 终端输出</h3>
+        <span class="ms-4 text-muted fs-5" id="outputMeta"></span>
+        <button type="button" class="btn-close btn-close-white text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body bg-light p-4">
+        <div id="markdown-viewer" class="bg-white p-4 rounded-3 shadow-sm" style="min-height: 100%; overflow-y: auto; font-size: 15px; border: 1px solid #e5e7eb;">
+            <div class="text-muted text-center py-5 d-flex flex-column align-items-center">
+                <i class="ti ti-code-dots text-gray-300 mb-3" style="font-size: 4rem;"></i>
+                暂无输出数据，请在上方编排节点并启动流转。
             </div>
         </div>
+        <textarea id="finalResultBox" style="display:none;"></textarea>
     </div>
 </div>
 
@@ -901,11 +937,17 @@ function createNodeInstance(nodeId, nodeName, nodeIcon, x, y) {
     el.dataset.nodeIndex = index;
 
     // 收集下拉框选项
+    // 👑 修复：从潜伏的右键菜单中抓取所有的节点信息，而不是已经删掉的侧边栏！
     var templates = [];
-    document.querySelectorAll('#paletteList .palette-item').forEach(function(item) {
-        templates.push({ id: item.dataset.nodeId, name: item.dataset.nodeName, icon: item.dataset.nodeIcon });
+    document.querySelectorAll('#contextMenuList .comfy-context-item').forEach(function(item) {
+        templates.push({
+            id: item.dataset.id,
+            name: item.dataset.name,
+            icon: item.dataset.icon
+        });
     });
-    templates.push({ id: '-1', name: '导出为 PowerPoint', icon: 'ti ti-file-powerpoint' });
+
+    // (注意：这里不需要再手动 push PPT 节点了，因为右键菜单的 HTML 里已经包含了它)
 
     var optionsHtml = templates.map(function(t) {
         var sel = t.id === nodeId ? ' selected' : '';
@@ -964,9 +1006,10 @@ function onNodeTypeChange(nodeElId) {
     inst.el.querySelector('.node-title').textContent = newName;
 
     // 更新图标（从下拉框没法直接拿 icon，从 palette 查找）
-    const paletteItem = document.querySelector('.palette-item[data-node-id="' + newId + '"]');
+    // 👑 修复：更新图标（从右键菜单的 DOM 中查找新图标）
+    const paletteItem = document.querySelector('.comfy-context-item[data-id="' + newId + '"]');
     if (paletteItem) {
-        const iconClass = paletteItem.dataset.nodeIcon;
+        const iconClass = paletteItem.dataset.icon;
         inst.icon = iconClass;
         inst.el.querySelector('.node-icon').className = 'node-icon ' + iconClass;
     }
@@ -1262,20 +1305,14 @@ function showFinalResult(finalResult) {
 }
 
 function showFinalOutput() {
-    document.getElementById('finalOutputPanel').style.display = '';
+    // 👑 调用 Bootstrap 原生 API，从底部平滑拉起终端抽屉
+    var offcanvasElement = document.getElementById('outputOffcanvas');
+    var bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement) || new bootstrap.Offcanvas(offcanvasElement);
+    bsOffcanvas.show();
 }
 
-function toggleFinalOutput() {
-    var body = document.getElementById('finalOutputBody');
-    var chevron = document.getElementById('finalOutputChevron');
-    if (body.style.display === 'none') {
-        body.style.display = '';
-        chevron.style.transform = 'rotate(0deg)';
-    } else {
-        body.style.display = 'none';
-        chevron.style.transform = 'rotate(-90deg)';
-    }
-}
+// 这个函数没用了，可以保留空函数防止报错，或者直接删掉
+function toggleFinalOutput() { }
 
 function resetExecuteButton() {
     var btnExecute = document.getElementById('btnExecute');
@@ -1631,6 +1668,69 @@ function triggerConfetti() {
         }));
     }, 250);
 }
+// 记录右键点击时的世界坐标
+var contextWorldX = 0;
+var contextWorldY = 0;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const viewport = document.getElementById('canvasViewport');
+    const contextMenu = document.getElementById('comfyContextMenu');
+    const searchInput = document.getElementById('contextSearchInput');
+    const menuItems = document.querySelectorAll('.comfy-context-item');
+
+    // 1. 拦截画板右键事件
+    viewport.addEventListener('contextmenu', function(e) {
+        e.preventDefault(); // 阻止浏览器默认右键菜单
+
+        // 计算点击位置在虚拟画板中的真实世界坐标
+        const rect = viewport.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        contextWorldX = (mouseX - canvasPanX) / canvasZoom;
+        contextWorldY = (mouseY - canvasPanY) / canvasZoom;
+
+        // 定位并显示自定义菜单
+        contextMenu.style.left = e.clientX + 'px';
+        contextMenu.style.top = e.clientY + 'px';
+        contextMenu.style.display = 'flex';
+
+        // 自动聚焦搜索框，体验拉满
+        searchInput.value = '';
+        filterContextMenu('');
+        setTimeout(() => searchInput.focus(), 50);
+    });
+
+    // 2. 点击空白处隐藏菜单
+    document.addEventListener('click', function(e) {
+        if (!contextMenu.contains(e.target)) {
+            contextMenu.style.display = 'none';
+        }
+    });
+
+    // 3. 搜索过滤逻辑
+    searchInput.addEventListener('input', function(e) {
+        filterContextMenu(e.target.value.toLowerCase().trim());
+    });
+
+    function filterContextMenu(keyword) {
+        menuItems.forEach(item => {
+            const name = item.dataset.name.toLowerCase();
+            item.style.display = name.includes(keyword) ? 'flex' : 'none';
+        });
+    }
+
+    // 4. 点击菜单项，在鼠标位置精准生成节点
+    menuItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const name = this.dataset.name;
+            const icon = this.dataset.icon;
+            // 呼叫现有的核心方法，直接在鼠标世界坐标处生成
+            addNodeToCanvasAt(id, name, icon, contextWorldX, contextWorldY);
+            contextMenu.style.display = 'none';
+        });
+    });
+});
 </script>
 
 <%-- 隐藏的 PPT 数据区 --%>
@@ -1643,5 +1743,42 @@ function triggerConfetti() {
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<!-- 👑 动态侧滑抽屉 (Offcanvas)：装载工具与缓存 -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="toolboxOffcanvas" aria-labelledby="toolboxOffcanvasLabel" style="width: 350px;">
+    <div class="offcanvas-header bg-light border-bottom">
+        <h3 class="offcanvas-title fw-bold" id="toolboxOffcanvasLabel"><i class="ti ti-box me-2 text-primary"></i> 工作台工具箱</h3>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-3">
 
+        <!-- 核心操作区 -->
+        <label class="form-label text-muted fw-bold mb-2">文件与数据流</label>
+        <div class="d-flex flex-column gap-2 mb-4">
+            <button class="btn btn-primary w-100 shadow-sm" onclick="saveToLocalCache()">
+                <i class="ti ti-device-floppy me-2"></i> 保存当前画板到浏览器
+            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-success flex-fill" onclick="exportToFile()">
+                    <i class="ti ti-download me-1"></i> 导出 JSON
+                </button>
+                <input type="file" id="importJsonInput" style="display:none" accept=".json" onchange="importFromFile(event)">
+                <button class="btn btn-outline-warning flex-fill" onclick="document.getElementById('importJsonInput').click()">
+                    <i class="ti ti-upload me-1"></i> 导入 JSON
+                </button>
+            </div>
+            <button class="btn btn-outline-danger w-100" onclick="clearCanvas()">
+                <i class="ti ti-trash me-2"></i> 清空当前画板
+            </button>
+        </div>
+
+        <!-- 本地缓存列表区 -->
+        <label class="form-label text-muted fw-bold mb-2">本地暂存记录</label>
+        <div class="card shadow-sm border-primary" style="border-top: 2px solid #206bc4;">
+            <div class="list-group list-group-flush" id="localWorkflowList" style="max-height: 400px; overflow-y: auto;">
+                <!-- JS 会自动把列表渲染到这里 -->
+            </div>
+        </div>
+
+    </div>
+</div>
 <jsp:include page="footer.jsp" />
