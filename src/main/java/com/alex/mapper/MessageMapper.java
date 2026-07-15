@@ -53,9 +53,11 @@ public interface MessageMapper {
     int broadcastToAllUsers(Message message);
 
     /**
-     * 🔔 获取用户最新一条未读消息（用于首页浮窗通知）
+     * 🔔 获取用户最新一条未读的广播类消息（用于首页浮窗通知）
+     * 仅返回管理员发送的公告/系统/警告/福利类消息，不包含社区互动（点赞/评论）
      */
     @Select("SELECT * FROM sys_message WHERE user_id = #{userId} AND is_read = 0 " +
+            "AND type IN ('announcement', 'system', 'warning', 'reward') " +
             "ORDER BY create_time DESC LIMIT 1")
     Message getLatestUnread(@Param("userId") int userId);
 }

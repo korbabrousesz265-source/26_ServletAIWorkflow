@@ -152,7 +152,7 @@
         transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         cursor: pointer;
     }
-    .unread-float-bar.show { top: 16px; }
+    .unread-float-bar.show { top: 72px; }
     .unread-float-bar .float-icon {
         font-size: 28px;
         flex-shrink: 0;
@@ -181,6 +181,12 @@
 
 <script>
 (function() {
+    // 局部 escapeHtml（不依赖父页面的定义）
+    function esc(s) {
+        if (!s) return '';
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     fetch('/messages?action=latestUnread')
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -204,8 +210,8 @@
             bar.innerHTML =
                 '<div class="float-icon ' + iconColor + '"><i class="ti ti-' + iconName + ' fs-2"></i></div>' +
                 '<div class="float-body">' +
-                '<div class="float-title">' + escapeHtml(data.title) + '</div>' +
-                '<div class="float-content">' + escapeHtml(data.content) + '</div>' +
+                '<div class="float-title">' + esc(data.title) + '</div>' +
+                '<div class="float-content">' + esc(data.content) + '</div>' +
                 '</div>' +
                 '<button class="float-close">&times;</button>';
 
@@ -228,7 +234,7 @@
                     bar.classList.remove('show');
                     setTimeout(function() { if (bar.parentNode) bar.remove(); }, 500);
                 }
-            }, 6000);
+            }, 8000);
         })
         .catch(function() {});
 })();

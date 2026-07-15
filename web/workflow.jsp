@@ -490,12 +490,12 @@
         -webkit-user-select: none;
     }
 
-    /* 👑 悬浮毛玻璃输入舱 (代替原本占空间的初始输入区) */
+    /* 👑 悬浮毛玻璃输入舱 (拓宽版) */
     .floating-input-panel {
         position: absolute;
         top: 24px;
         left: 24px;
-        width: 340px;
+        width: 420px; /* 🚀 从 340px 拓宽到 420px，大气舒展 */
         background: rgba(255, 255, 255, 0.85);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
@@ -503,20 +503,34 @@
         border-radius: 16px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.08);
         z-index: 40;
-        padding: 20px;
+        padding: 24px; /* 增加内边距 */
         transition: transform 0.3s ease;
     }
     .floating-input-panel:hover {
         transform: translateY(-2px);
         box-shadow: 0 15px 50px rgba(0,0,0,0.12);
     }
+
+    /* 👑 输入框本体完全自适应填充 */
     .floating-input-panel textarea {
-        background: rgba(255, 255, 255, 0.6);
-        border: 1px solid rgba(0,0,0,0.05);
+        width: 100%;           /* 🚀 强制铺满舱体宽度 */
+        min-height: 160px;     /* 🚀 增加默认高度，方便录入长文本 */
+        padding: 14px;         /* 🚀 舒服的文字内边距 */
+        box-sizing: border-box;
+        resize: vertical;      /* 允许用户按需上下拉伸 */
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(0,0,0,0.1);
         border-radius: 10px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #1e293b;
+        transition: all 0.2s;
     }
     .floating-input-panel textarea:focus {
         background: #fff;
+        outline: none;
+        border-color: #206bc4;
+        box-shadow: 0 0 0 3px rgba(32, 107, 196, 0.15);
     }
 
     /* 👑 底部中央的悬浮控制台 (代替原本在下方的按钮) */
@@ -545,23 +559,66 @@
     }
     .floating-action-bar .btn-primary { background: #206bc4; border: none; }
     .floating-action-bar .btn-primary:hover { background: #1a569d; transform: scale(1.02); }
+
+    /* 👑 节点左右侧的输入输出端口 (Anchors) */
+    .port {
+        width: 14px; height: 14px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 3px solid #206bc4;
+        position: absolute;
+        top: 50%; transform: translateY(-50%);
+        cursor: crosshair;
+        z-index: 1000; /* 🚀 调高层级，确保不被节点内容遮挡 */
+        transition: transform 0.2s, background 0.2s;
+        touch-action: none; /* 🚀 阻止移动端的默认滚动/缩放行为干扰连线 */
+    }
+    .port:hover { transform: translateY(-50%) scale(1.3); background: #206bc4; }
+    .port-in { left: -7px; }
+    .port-out { right: -7px; }
+
+    /* 👑 新增：真正的 SVG 贝塞尔曲线层 */
+    #wireLayer {
+        position: absolute; top: 0; left: 0;
+        width: 100%; height: 100%;
+        pointer-events: none; /* 让鼠标事件穿透 svg 从而能拖拽节点 */
+        z-index: 5;
+    }
+    .wire-path {
+        fill: none;
+        stroke: #206bc4;
+        stroke-width: 3px;
+        stroke-linecap: round;
+        opacity: 0.6;
+        transition: stroke 0.3s, stroke-width 0.3s;
+    }
+    .wire-path:hover { opacity: 1; stroke: #f59f00; stroke-width: 5px; pointer-events: auto; cursor: pointer; }
+
+    /* 隐藏旧版的生硬箭头 */
+    .pipeline-connector { display: none !important; }
+    .canvas-node.source-node { border-color: #1e293b; box-shadow: 0 4px 16px rgba(0,0,0,0.1); width: 300px; }
+    .canvas-node.source-node .form-control:focus { box-shadow: none; border-color: #1e293b; }
 </style>
 
-<!-- 👑 潜伏的右键菜单 DOM -->
+<!-- 👑 潜伏的右键菜单 DOM (彻底纯动态渲染) -->
 <div id="comfyContextMenu" class="comfy-context-menu" style="display: none;">
     <div class="comfy-context-search">
         <input type="text" id="contextSearchInput" placeholder="搜索节点 (Search...)">
     </div>
     <div class="comfy-context-list" id="contextMenuList">
-        <!-- AI 节点 -->
+
+        <!-- 所有的节点（包括 AI 节点和 ID为负数的工具节点）都由数据库统一吐出 -->
         <c:forEach var="tpl" items="${templates}">
             <div class="comfy-context-item" data-id="${tpl.id}" data-name="${tpl.name}" data-icon="${tpl.icon}">
-                <i class="ti ${tpl.icon} text-primary"></i> ${tpl.name}
+                <!-- 针对插件节点给予不同的颜色区分 -->
+                <i class="ti ${tpl.icon} ${tpl.id < 0 ? 'text-warning fw-bold' : 'text-primary'}"></i> ${tpl.name}
             </div>
         </c:forEach>
-        <!-- 插件节点 -->
-        <div class="comfy-context-item" style="border-top: 1px solid #eee; margin-top: 4px;" data-id="-1" data-name="导出为 PowerPoint" data-icon="ti ti-file-powerpoint">
-            <i class="ti ti-file-powerpoint text-warning"></i> 导出为 PowerPoint
+
+
+        <!-- ================= 增加自定义多源输入节点 ================= -->
+        <div class="comfy-context-item" style="border-top: 1px solid #eee; margin-top: 4px;" data-id="-3" data-name="自定义独立文本输入" data-icon="ti ti-forms">
+            <i class="ti ti-forms text-success"></i> 自定义独立文本输入
         </div>
     </div>
 </div>
@@ -570,11 +627,12 @@
     <%-- 🔑 悬浮 API Key 警告 (绝对定位在顶部正中) --%>
     <c:if test="${showApiKeyWarning}">
         <div class="position-absolute top-0 start-50 translate-middle-x mt-3 w-50" style="z-index: 1000;">
-            <div class="alert alert-warning shadow-lg border-0 rounded-4" role="alert">
+            <!-- 👑 修复：强制白底 (bg-white)，加粗橙色左边框，彻底解决透色问题 -->
+            <div class="alert shadow-lg border-0 rounded-4 bg-white" role="alert" style="border-left: 6px solid #f59f00;">
                 <div class="d-flex align-items-center">
                     <div class="me-3"><i class="ti ti-alert-triangle fs-2 text-warning"></i></div>
-                    <div class="flex-fill">尚未配置 API 密钥，将使用系统公共算力。</div>
-                    <a href="profile?action=index" class="btn btn-warning btn-sm fw-bold rounded-pill">前往配置</a>
+                    <div class="flex-fill text-dark fw-bold">尚未配置 API 密钥，将使用系统公共算力。</div>
+                    <a href="profile?action=index" class="btn btn-warning btn-sm fw-bold rounded-pill shadow-sm">前往配置</a>
                     <a class="btn-close ms-3" data-bs-dismiss="alert" aria-label="close"></a>
                 </div>
             </div>
@@ -584,17 +642,7 @@
     <%-- 👑 无边界沉浸式画布 --%>
     <div class="canvas-viewport" id="canvasViewport">
 
-        <!-- 1. 悬浮的左上角输入舱 -->
-        <div class="floating-input-panel">
-            <div class="d-flex align-items-center mb-3">
-                <div class="bg-primary text-white rounded p-1 me-2"><i class="ti ti-terminal-2"></i></div>
-                <h3 class="m-0 fw-bold">全局初始任务</h3>
-            </div>
-            <textarea id="userTextInput" rows="4" placeholder="在此输入需要抛入工作流的文本内容...">${param.userText}</textarea>
-            <div class="text-muted mt-2" style="font-size: 11px;">
-                <i class="ti ti-info-circle me-1"></i> 右键呼出节点面板 · 滚轮缩放画布
-            </div>
-        </div>
+
 
         <!-- 2. 悬浮右上角：工具箱唤醒球 -->
         <button class="btn btn-dark btn-icon rounded-circle position-absolute bottom-0 start-0 m-4 shadow-lg" style="z-index: 50; width: 54px; height: 54px;" data-bs-toggle="offcanvas" data-bs-target="#toolboxOffcanvas" title="打开工具箱">
@@ -651,1086 +699,483 @@
 
 <%-- ========== JavaScript 引擎 ========== --%>
 <script>
-// ==================== 全局状态 ====================
-var nodeInstances = [];  // { id, nodeId, name, icon, el, x, y, outputData }
-var pipelineConnectors = []; // DOM elements for connector arrows (var: 需要重新赋值)
-var nodeIdCounter = 0;
-// 管道布局参数
-var NODE_WIDTH = 260;
-var NODE_GAP = 16;        // 节点之间的间距（箭头放在中间）
-var PIPELINE_START_X = 200;
-var PIPELINE_START_Y = 200;
-var ROW_BREAK_AFTER = 4;  // 每行最多 4 个节点后换行
+    // ==================== 全局核心状态 ====================
+    var nodeInstances = [];
+    var edges = [];
+    var nodeIdCounter = 0;
+    var canvasPanX = 0, canvasPanY = 0, canvasZoom = 1;
+    var isPanning = false, isDraggingNode = false, isDrawingWire = false;
+    var panStart = { x: 0, y: 0 }, dragOffset = { x: 0, y: 0 };
+    var dragTarget = null, tempWireStartPort = null, executionAborted = false;
+    var CANVAS_WORLD_SIZE = 6000;
 
-var canvasPanX = 0, canvasPanY = 0;
-var canvasZoom = 1;
-var isPanning = false;
-var isDraggingNode = false;
-var panStart = { x: 0, y: 0 };
-var dragTarget = null;
-var dragOffset = { x: 0, y: 0 };
-var executionAborted = false;
+    // ==================== 1. 初始化与事件总线 ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewport = document.getElementById('canvasViewport');
+        const world = document.getElementById('canvasWorld');
 
-var CANVAS_WORLD_SIZE = 6000;
+        canvasPanX = (CANVAS_WORLD_SIZE - viewport.clientWidth) / 2;
+        canvasPanY = (CANVAS_WORLD_SIZE - viewport.clientHeight) / 2;
+        applyTransform();
 
-// ==================== 画布初始化 ====================
-document.addEventListener('DOMContentLoaded', function() {
-    const viewport = document.getElementById('canvasViewport');
+        world.insertAdjacentHTML('beforeend', '<svg id="wireLayer"><path id="tempWire" class="wire-path" style="display:none;"/></svg>');
 
-    // 初始画布居中
-    const vw = viewport.clientWidth;
-    const vh = viewport.clientHeight;
-    canvasPanX = (CANVAS_WORLD_SIZE - vw) / 2;
-    canvasPanY = (CANVAS_WORLD_SIZE - vh) / 2;
-    applyTransform();
+        addNodeToCanvasAt('-999', '全局初始任务', 'ti ti-terminal-2', 100 + 260/2, 100 + 30);
 
-    // --- 画布平移（空白区域拖拽） ---
-    viewport.addEventListener('pointerdown', function(e) {
-        const target = e.target;
-        if (target.closest('.canvas-node') || target.closest('.zoom-controls') ||
-            target.closest('button') || target.closest('select') || target.closest('input')) {
-            return;
-        }
-        isPanning = true;
-        panStart = { x: e.clientX - canvasPanX, y: e.clientY - canvasPanY };
-        viewport.classList.add('panning');
-        viewport.setPointerCapture(e.pointerId);
+        viewport.addEventListener('pointerdown', handlePointerDown);
+        document.addEventListener('pointermove', handlePointerMove);
+        document.addEventListener('pointerup', handlePointerUp);
+        viewport.addEventListener('wheel', handleWheel, { passive: false });
+
+        initContextMenu();
+        restoreCanvasState();
+        renderLocalSidebar();
+
+        setTimeout(function() {
+            let hint = document.getElementById('canvasHint');
+            if (hint) hint.style.display = 'none';
+        }, 5000);
     });
 
-    viewport.addEventListener('pointermove', function(e) {
+    function applyTransform() {
+        document.getElementById('canvasWorld').style.transform = 'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')';
+        document.getElementById('zoomLabel').textContent = Math.round(canvasZoom * 100) + '%';
+    }
+
+    function handlePointerDown(e) {
+        if (e.target.closest('.canvas-node') || e.target.closest('.zoom-controls') || e.target.closest('button') || e.target.closest('.port')) return;
+        isPanning = true;
+        panStart = { x: e.clientX - canvasPanX, y: e.clientY - canvasPanY };
+        document.getElementById('canvasViewport').classList.add('panning');
+    }
+
+    function handlePointerMove(e) {
         if (isPanning) {
             canvasPanX = e.clientX - panStart.x;
             canvasPanY = e.clientY - panStart.y;
             applyTransform();
         }
         if (isDraggingNode && dragTarget) {
-            updateNodeDrag(e);
+            let vpRect = document.getElementById('canvasViewport').getBoundingClientRect();
+            let wX = (e.clientX - vpRect.left - dragOffset.x - canvasPanX) / canvasZoom;
+            let wY = (e.clientY - vpRect.top - dragOffset.y - canvasPanY) / canvasZoom;
+            dragTarget.x = wX; dragTarget.y = wY;
+            dragTarget.el.style.left = wX + 'px'; dragTarget.el.style.top = wY + 'px';
+            renderWires();
         }
-    });
+        if (isDrawingWire && tempWireStartPort) {
+            let vpRect = document.getElementById('canvasViewport').getBoundingClientRect();
+            let startRect = tempWireStartPort.getBoundingClientRect();
+            let sX = (startRect.left + 7 - vpRect.left - canvasPanX) / canvasZoom;
+            let sY = (startRect.top + 7 - vpRect.top - canvasPanY) / canvasZoom;
+            let eX = (e.clientX - vpRect.left - canvasPanX) / canvasZoom;
+            let eY = (e.clientY - vpRect.top - canvasPanY) / canvasZoom;
+            document.getElementById('tempWire').setAttribute("d", 'M ' + sX + ' ' + sY + ' C ' + (sX+100) + ' ' + sY + ', ' + (eX-100) + ' ' + eY + ', ' + eX + ' ' + eY);
+        }
+    }
 
-    viewport.addEventListener('pointerup', function(e) {
+    function handlePointerUp(e) {
         if (isPanning) {
             isPanning = false;
-            viewport.classList.remove('panning');
-            viewport.releasePointerCapture(e.pointerId);
+            document.getElementById('canvasViewport').classList.remove('panning');
         }
-        if (isDraggingNode && dragTarget) {
-            endNodeDrag(e);
+        if (isDraggingNode) {
+            dragTarget.el.classList.remove('dragging');
+            isDraggingNode = false; dragTarget = null;
+            renderWires();
         }
-    });
-
-    viewport.addEventListener('pointerleave', function() {
-        if (isPanning) {
-            isPanning = false;
-            viewport.classList.remove('panning');
-        }
-    });
-
-    // --- 滚轮缩放 ---
-    viewport.addEventListener('wheel', function(e) {
-        e.preventDefault();
-        const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
-        const newZoom = Math.min(2.5, Math.max(0.2, canvasZoom * zoomFactor));
-        const rect = viewport.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const worldX = (mouseX - canvasPanX) / canvasZoom;
-        const worldY = (mouseY - canvasPanY) / canvasZoom;
-        canvasPanX = mouseX - worldX * newZoom;
-        canvasPanY = mouseY - worldY * newZoom;
-        canvasZoom = newZoom;
-        applyTransform();
-        updateZoomLabel();
-    }, { passive: false });
-
-    // --- 触摸双指缩放 ---
-    var lastPinchDist = 0;
-    viewport.addEventListener('touchstart', function(e) {
-        if (e.touches.length === 2) {
-            lastPinchDist = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
-        }
-    });
-    viewport.addEventListener('touchmove', function(e) {
-        if (e.touches.length === 2) {
-            e.preventDefault();
-            var dist = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
-            if (lastPinchDist > 0) {
-                var factor = dist / lastPinchDist;
-                var newZoom = Math.min(2.5, Math.max(0.2, canvasZoom * factor));
-                canvasZoom = newZoom;
-                applyTransform();
-                updateZoomLabel();
-            }
-            lastPinchDist = dist;
-        }
-    }, { passive: false });
-
-    // --- 侧边栏节点点击添加到画布 ---
-    document.addEventListener('click', function(e) {
-        var item = e.target.closest('.palette-item');
-        if (!item || e.target.closest('input')) return;
-        var nodeId = item.dataset.nodeId;
-        var nodeName = item.dataset.nodeName;
-        var nodeIcon = item.dataset.nodeIcon;
-        if (nodeId && nodeName) {
-            addNodeToCanvas(nodeId, nodeName, nodeIcon || 'ti ti-robot');
-        }
-    });
-
-    restoreCanvasState();
-    renderLocalSidebar();
-
-    setTimeout(function() {
-        var hint = document.getElementById('canvasHint');
-        if (hint) hint.style.opacity = '0';
-        setTimeout(function() { if (hint) hint.style.display = 'none'; }, 500);
-    }, 8000);
-
-    <c:if test="${not empty finalResult}">
-        document.getElementById('finalResultBox').value = '${finalResult}';
-        showFinalOutput();
-        renderMarkdown();
-        triggerConfetti();
-    </c:if>
-
-    <c:if test="${not empty autoTriggerPPT}">
-        setTimeout(function() {
-            executePPTNode(document.getElementById('autoTriggerPPTData').value);
-        }, 800);
-    </c:if>
-});
-
-// ==================== 变换应用 ====================
-function applyTransform() {
-    var world = document.getElementById('canvasWorld');
-    world.style.transform = 'translate(' + canvasPanX + 'px, ' + canvasPanY + 'px) scale(' + canvasZoom + ')';
-}
-
-function updateZoomLabel() {
-    document.getElementById('zoomLabel').textContent = Math.round(canvasZoom * 100) + '%';
-}
-
-// ==================== 管道布局引擎 ====================
-function reflowPipeline() {
-    var row = 0;
-    var col = 0;
-
-    // 先移除所有旧的连接箭头
-    pipelineConnectors.forEach(function(c) { c.remove(); });
-    pipelineConnectors = [];
-
-    nodeInstances.forEach(function(inst, i) {
-        // 计算行列
-        row = Math.floor(i / ROW_BREAK_AFTER);
-        col = i % ROW_BREAK_AFTER;
-
-        var newX = PIPELINE_START_X + col * (NODE_WIDTH + NODE_GAP + 44);
-        var newY = PIPELINE_START_Y + row * 320;
-
-        // 平滑移动节点
-        inst.el.style.transition = 'left 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-        inst.el.style.left = newX + 'px';
-        inst.el.style.top = newY + 'px';
-        inst.x = newX;
-        inst.y = newY;
-
-        // 更新步骤编号
-        var badge = inst.el.querySelector('.node-step-badge');
-        if (badge) badge.textContent = i + 1;
-
-        // 在非行尾节点后面创建连接箭头
-        if (col < ROW_BREAK_AFTER - 1 && i < nodeInstances.length - 1) {
-            var nextRow = Math.floor((i + 1) / ROW_BREAK_AFTER);
-            if (nextRow === row) {
-                var arrow = createConnectorArrow(newX + NODE_WIDTH, newY);
-                pipelineConnectors.push(arrow);
-                document.getElementById('canvasWorld').appendChild(arrow);
-            }
-        }
-
-        // 行尾 → 下一行行首：拐弯箭头
-        if (col === ROW_BREAK_AFTER - 1 && i < nodeInstances.length - 1) {
-            // 右下角到下一行左上角的拐弯
-        }
-    });
-
-    // 清除 transition，避免后续拖拽卡顿
-    setTimeout(function() {
-        nodeInstances.forEach(function(inst) {
-            inst.el.style.transition = 'box-shadow 0.2s, border-color 0.2s';
-        });
-    }, 400);
-}
-
-function createConnectorArrow(fromRight, nodeY) {
-    var el = document.createElement('div');
-    el.className = 'pipeline-connector';
-    el.style.left = (fromRight + 2) + 'px';
-    el.style.top = (nodeY + 70) + 'px'; // 垂直居中
-    el.style.height = '2px';
-    el.innerHTML = '<div class="connector-line"></div><i class="ti ti-chevron-right connector-arrow"></i>';
-    return el;
-}
-
-// ==================== 节点操作 ====================
-/**
- * 从侧边栏拖拽节点到画布指定位置
- */
-function addNodeToCanvasAt(nodeId, nodeName, nodeIcon, worldX, worldY) {
-    var world = document.getElementById('canvasWorld');
-
-    var instance = createNodeInstance(nodeId, nodeName, nodeIcon, worldX - NODE_WIDTH / 2, worldY - 30);
-    nodeInstances.push(instance);
-    world.appendChild(instance.el);
-
-    // 动画淡入
-    instance.el.style.opacity = '0';
-    instance.el.style.transform = 'scale(0.8)';
-    requestAnimationFrame(function() {
-        instance.el.style.transition = 'opacity 0.2s, transform 0.2s';
-        instance.el.style.opacity = '1';
-        instance.el.style.transform = 'scale(1)';
-        setTimeout(function() {
-            instance.el.style.transition = 'box-shadow 0.2s, border-color 0.2s';
-        }, 200);
-    });
-
-    // 👑 重排管道布局，首次添加自动适应画布
-    var isFirstNode = (nodeInstances.length === 1);
-    reflowPipeline();
-    if (isFirstNode) {
-        setTimeout(resetView, 400); // 等 reflow 动画完成后再居中
-    }
-
-    var hint = document.getElementById('canvasHint');
-    if (hint) { hint.style.opacity = '0'; setTimeout(function() { hint.style.display = 'none'; }, 300); }
-}
-
-/**
- * 点击添加到管道末尾（保留兼容）
- */
-function addNodeToCanvas(nodeId, nodeName, nodeIcon) {
-    // 默认添加到管道末尾附近
-    var col = nodeInstances.length % ROW_BREAK_AFTER;
-    var row = Math.floor(nodeInstances.length / ROW_BREAK_AFTER);
-    var worldX = PIPELINE_START_X + col * (NODE_WIDTH + NODE_GAP + 44);
-    var worldY = PIPELINE_START_Y + row * 320;
-    addNodeToCanvasAt(nodeId, nodeName, nodeIcon, worldX + NODE_WIDTH / 2, worldY + 30);
-}
-
-function createNodeInstance(nodeId, nodeName, nodeIcon, x, y) {
-    var id = 'node-' + (++nodeIdCounter);
-    var index = nodeInstances.length;
-
-    var el = document.createElement('div');
-    el.className = 'canvas-node';
-    el.id = id;
-    el.style.left = x + 'px';
-    el.style.top = y + 'px';
-    el.dataset.nodeId = nodeId;
-    el.dataset.nodeIndex = index;
-
-    // 收集下拉框选项
-    // 👑 修复：从潜伏的右键菜单中抓取所有的节点信息，而不是已经删掉的侧边栏！
-    var templates = [];
-    document.querySelectorAll('#contextMenuList .comfy-context-item').forEach(function(item) {
-        templates.push({
-            id: item.dataset.id,
-            name: item.dataset.name,
-            icon: item.dataset.icon
-        });
-    });
-
-    // (注意：这里不需要再手动 push PPT 节点了，因为右键菜单的 HTML 里已经包含了它)
-
-    var optionsHtml = templates.map(function(t) {
-        var sel = t.id === nodeId ? ' selected' : '';
-        return '<option value="' + t.id + '"' + sel + '>' + t.name + '</option>';
-    }).join('');
-
-    el.innerHTML =
-        '<div class="node-header" onpointerdown="startNodeDrag(event, \'' + id + '\')">' +
-        '<span class="node-step-badge">' + (index + 1) + '</span>' +
-        '<i class="node-icon ' + nodeIcon + '"></i>' +
-        '<span class="node-title">' + escapeHtml(nodeName) + '</span>' +
-        '<span class="node-status-dot" id="' + id + '-status"></span>' +
-        '<button class="btn-close-node" onclick="removeNodeInstance(\'' + id + '\')" title="删除节点">×</button>' +
-        '</div>' +
-        '<div class="node-body">' +
-        '<select class="node-type-select" id="' + id + '-select" onchange="onNodeTypeChange(\'' + id + '\')">' +
-        optionsHtml +
-        '</select>' +
-        '<button class="btn-expand-output mt-2" id="' + id + '-expandBtn" style="display:none;" onclick="toggleNodeOutput(\'' + id + '\')">' +
-        '<i class="ti ti-eye me-1"></i> 查看输出</button>' +
-        '</div>' +
-        '<div class="node-output-panel" id="' + id + '-outputPanel">' +
-        '<div class="node-output-meta" id="' + id + '-meta"></div>' +
-        '<div class="node-output-content" id="' + id + '-output"></div>' +
-        '</div>';
-
-    return { id: id, nodeId: nodeId, name: nodeName, icon: nodeIcon, el: el, x: x, y: y, outputData: null };
-}
-
-function removeNodeInstance(nodeElId) {
-    var idx = nodeInstances.findIndex(function(n) { return n.id === nodeElId; });
-    if (idx === -1) return;
-    var inst = nodeInstances[idx];
-    inst.el.style.opacity = '0';
-    inst.el.style.transform = 'scale(0.8)';
-    setTimeout(function() {
-        inst.el.remove();
-        nodeInstances.splice(idx, 1);
-        if (nodeInstances.length > 0) {
-            reflowPipeline();
-        } else {
-            pipelineConnectors.forEach(function(c) { c.remove(); });
-            pipelineConnectors = [];
-        }
-    }, 200);
-}
-
-function onNodeTypeChange(nodeElId) {
-    const inst = nodeInstances.find(function(n) { return n.id === nodeElId; });
-    if (!inst) return;
-    const select = document.getElementById(nodeElId + '-select');
-    const newId = select.value;
-    const newName = select.options[select.selectedIndex].text;
-    inst.nodeId = newId;
-    inst.name = newName;
-    inst.el.querySelector('.node-title').textContent = newName;
-
-    // 更新图标（从下拉框没法直接拿 icon，从 palette 查找）
-    // 👑 修复：更新图标（从右键菜单的 DOM 中查找新图标）
-    const paletteItem = document.querySelector('.comfy-context-item[data-id="' + newId + '"]');
-    if (paletteItem) {
-        const iconClass = paletteItem.dataset.icon;
-        inst.icon = iconClass;
-        inst.el.querySelector('.node-icon').className = 'node-icon ' + iconClass;
-    }
-
-    // 清除旧的输出
-    inst.outputData = null;
-    inst.el.classList.remove('executing', 'done', 'error');
-    var statusDot = document.getElementById(nodeElId + '-status');
-    if (statusDot) statusDot.className = 'node-status-dot';
-    var expandBtn = document.getElementById(nodeElId + '-expandBtn');
-    if (expandBtn) expandBtn.style.display = 'none';
-    var panel = document.getElementById(nodeElId + '-outputPanel');
-    if (panel) panel.classList.remove('expanded');
-}
-
-function toggleNodeOutput(nodeElId) {
-    const panel = document.getElementById(nodeElId + '-outputPanel');
-    if (panel) panel.classList.toggle('expanded');
-}
-
-// ==================== 节点拖拽（用于调整排序） ====================
-function startNodeDrag(e, nodeElId) {
-    if (e.target.closest('select') || e.target.closest('button') ||
-        e.target.closest('.node-output-panel')) {
-        return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-
-    var inst = nodeInstances.find(function(n) { return n.id === nodeElId; });
-    if (!inst) return;
-
-    // 先清除所有节点的过渡动画
-    nodeInstances.forEach(function(n) { n.el.style.transition = 'none'; });
-
-    isDraggingNode = true;
-    dragTarget = inst;
-
-    var rect = inst.el.getBoundingClientRect();
-    dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-
-    inst.el.classList.add('dragging');
-    inst.el.style.zIndex = '100';
-    document.body.style.cursor = 'grabbing';
-}
-
-function updateNodeDrag(e) {
-    if (!dragTarget) return;
-
-    var viewport = document.getElementById('canvasViewport');
-    var vpRect = viewport.getBoundingClientRect();
-
-    var screenX = e.clientX - vpRect.left - dragOffset.x;
-    var screenY = e.clientY - vpRect.top - dragOffset.y;
-    var worldX = (screenX - canvasPanX) / canvasZoom;
-    var worldY = (screenY - canvasPanY) / canvasZoom;
-
-    dragTarget.x = worldX;
-    dragTarget.y = worldY;
-    dragTarget.el.style.left = worldX + 'px';
-    dragTarget.el.style.top = worldY + 'px';
-
-    // 检测是否悬停在其他节点上（交换位置）
-    checkSwapTarget(e);
-}
-
-function endNodeDrag(e) {
-    if (!dragTarget) return;
-    dragTarget.el.classList.remove('dragging');
-    dragTarget.el.style.zIndex = '10';
-
-    // 检测是否需要交换位置
-    var swapResult = performSwap();
-    if (swapResult) {
-        reflowPipeline();
-    } else {
-        // 没有交换，回到原位
-        reflowPipeline();
-    }
-
-    isDraggingNode = false;
-    dragTarget = null;
-    document.body.style.cursor = '';
-}
-
-// 高亮交换目标
-var swapHighlight = null;
-function checkSwapTarget(e) {
-    if (!dragTarget) return;
-
-    // 清除旧高亮
-    if (swapHighlight && swapHighlight !== dragTarget.el) {
-        swapHighlight.style.borderColor = '';
-        swapHighlight.style.boxShadow = '';
-    }
-
-    var draggedIdx = nodeInstances.indexOf(dragTarget);
-    var targetIdx = -1;
-
-    nodeInstances.forEach(function(inst, i) {
-        if (inst === dragTarget) return;
-        var rect = inst.el.getBoundingClientRect();
-        if (e.clientX >= rect.left && e.clientX <= rect.right &&
-            e.clientY >= rect.top && e.clientY <= rect.bottom) {
-            targetIdx = i;
-        }
-    });
-
-    if (targetIdx >= 0 && targetIdx !== draggedIdx) {
-        swapHighlight = nodeInstances[targetIdx].el;
-        swapHighlight.style.borderColor = '#206bc4';
-        swapHighlight.style.boxShadow = '0 0 16px rgba(32,107,196,0.35)';
-    } else {
-        swapHighlight = null;
-    }
-}
-
-function performSwap() {
-    nodeInstances.forEach(function(inst) {
-        inst.el.style.borderColor = '';
-        inst.el.style.boxShadow = '';
-    });
-
-    if (!dragTarget || !swapHighlight) return false;
-
-    var draggedIdx = nodeInstances.indexOf(dragTarget);
-    // 从 DOM 找到目标的实例
-    var targetInst = null;
-    var targetIdx = -1;
-    nodeInstances.forEach(function(inst, i) {
-        if (inst.el === swapHighlight) { targetInst = inst; targetIdx = i; }
-    });
-
-    if (targetInst && targetIdx >= 0 && targetIdx !== draggedIdx) {
-        // 交换数组中的位置
-        var temp = nodeInstances[draggedIdx];
-        nodeInstances[draggedIdx] = nodeInstances[targetIdx];
-        nodeInstances[targetIdx] = temp;
-        return true;
-    }
-    return false;
-}
-
-
-// ==================== 工作流执行 ====================
-async function executeWorkflow() {
-    if (nodeInstances.length === 0) {
-        showToast('请先在画布上添加节点！', 'danger');
-        return;
-    }
-
-    var userText = document.getElementById('userTextInput').value.trim();
-    if (!userText) {
-        showToast('请填写初始任务内容！', 'danger');
-        return;
-    }
-
-    executionAborted = false;
-    var btnExecute = document.getElementById('btnExecute');
-    var btnStop = document.getElementById('btnStop');
-
-    btnExecute.disabled = true;
-    btnExecute.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> 执行中...';
-    btnStop.style.display = '';
-
-    // 重置所有节点状态
-    nodeInstances.forEach(function(inst) {
-        inst.el.classList.remove('executing', 'done', 'error');
-        inst.outputData = null;
-        var statusDot = document.getElementById(inst.id + '-status');
-        if (statusDot) statusDot.className = 'node-status-dot';
-        var expandBtn = document.getElementById(inst.id + '-expandBtn');
-        if (expandBtn) expandBtn.style.display = 'none';
-        var panel = document.getElementById(inst.id + '-outputPanel');
-        if (panel) panel.classList.remove('expanded');
-    });
-
-    // 收集节点 ID 顺序
-    var promptIds = nodeInstances.map(function(inst) { return inst.nodeId; });
-
-    // 保存画板状态
-    saveCanvasToStorage();
-
-    try {
-        var formData = new URLSearchParams();
-        formData.append('userText', userText);
-        formData.append('ajax', 'true');
-        promptIds.forEach(function(pid) {
-            formData.append('promptIds', pid);
-        });
-
-        var response = await fetch('chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-            body: formData.toString()
-        });
-
-        if (!response.ok) {
-            throw new Error('服务器返回状态码: ' + response.status);
-        }
-
-        var result = await response.json();
-        processNodeResults(result);
-
-    } catch (err) {
-        console.error('执行失败:', err);
-        showToast('执行失败: ' + err.message, 'danger');
-        resetExecuteButton();
-    }
-}
-
-function processNodeResults(result) {
-    var nodeResults = result.nodeResults || [];
-    var finalResult = result.finalResult || '';
-    var pptData = result.autoTriggerPPT || '';
-
-    // 模拟逐个节点完成的动画
-    var delay = 0;
-    nodeResults.forEach(function(nr, i) {
-        delay += 400;
-        setTimeout(function() {
-            if (executionAborted) return;
-            updateNodeWithResult(nr);
-            // 如果是最后一个非 PPT 节点，显示最终输出
-            if (i === nodeResults.length - 1) {
-                showFinalResult(finalResult);
-                resetExecuteButton();
-                triggerConfetti();
-            }
-        }, delay);
-    });
-
-    // 处理 PPT 自动下载
-    if (pptData) {
-        setTimeout(function() {
-            executePPTNode(pptData);
-        }, delay + 800);
-    }
-
-    // 如果没有节点结果但有最终结果
-    if (nodeResults.length === 0 && finalResult) {
-        showFinalResult(finalResult);
-        resetExecuteButton();
-    }
-}
-
-function updateNodeWithResult(nodeResult) {
-    var nodeIndex = nodeResult.nodeIndex;
-    if (nodeIndex >= nodeInstances.length) return;
-
-    var inst = nodeInstances[nodeIndex];
-    var status = nodeResult.status;
-
-    // 更新状态
-    inst.el.classList.remove('executing');
-    if (status === 'done') inst.el.classList.add('done');
-    else if (status === 'error') inst.el.classList.add('error');
-
-    var statusDot = document.getElementById(inst.id + '-status');
-    if (statusDot) statusDot.className = 'node-status-dot ' + status;
-
-    // 存储输出数据
-    inst.outputData = nodeResult;
-
-    // 显示输出面板
-    var expandBtn = document.getElementById(inst.id + '-expandBtn');
-    if (expandBtn) expandBtn.style.display = '';
-
-    var meta = document.getElementById(inst.id + '-meta');
-    if (meta) {
-        meta.innerHTML =
-            '<span><i class="ti ti-clock me-1"></i>' + (nodeResult.duration || 0) + 'ms</span>' +
-            '<span><i class="ti ti-flame me-1"></i>' + (nodeResult.tokens || 0) + ' Token</span>' +
-            '<span class="ms-auto"><i class="ti ti-' + (status === 'done' ? 'check text-success' : 'x text-danger') + '"></i></span>';
-    }
-
-    var output = document.getElementById(inst.id + '-output');
-    if (output) {
-        var outText = nodeResult.output || '';
-        if (outText.length > 500) outText = outText.substring(0, 500) + '...(点击展开查看完整内容)';
-        output.textContent = outText;
-    }
-
-    // 自动展开
-    var panel = document.getElementById(inst.id + '-outputPanel');
-    if (panel) panel.classList.add('expanded');
-}
-
-function showFinalResult(finalResult) {
-    document.getElementById('finalResultBox').value = finalResult;
-    showFinalOutput();
-    renderMarkdown();
-}
-
-function showFinalOutput() {
-    // 👑 调用 Bootstrap 原生 API，从底部平滑拉起终端抽屉
-    var offcanvasElement = document.getElementById('outputOffcanvas');
-    var bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement) || new bootstrap.Offcanvas(offcanvasElement);
-    bsOffcanvas.show();
-}
-
-// 这个函数没用了，可以保留空函数防止报错，或者直接删掉
-function toggleFinalOutput() { }
-
-function resetExecuteButton() {
-    var btnExecute = document.getElementById('btnExecute');
-    var btnStop = document.getElementById('btnStop');
-    btnExecute.disabled = false;
-    btnExecute.innerHTML = '<i class="ti ti-player-play me-2"></i> 启动自动化流转';
-    btnStop.style.display = 'none';
-}
-
-function stopExecution() {
-    executionAborted = true;
-    resetExecuteButton();
-    showToast('已停止执行');
-}
-
-// ==================== 最终结果渲染 ====================
-function renderMarkdown() {
-    var rawText = document.getElementById('finalResultBox').value;
-    var viewer = document.getElementById('markdown-viewer');
-    if (!rawText || !viewer) return;
-
-    if (typeof marked !== 'undefined') {
-        if (typeof hljs !== 'undefined') {
-            marked.setOptions({
-                highlight: function(code, lang) {
-                    var language = hljs.getLanguage(lang) ? lang : 'plaintext';
-                    return hljs.highlight(code, { language: language }).value;
+        if (isDrawingWire) {
+            isDrawingWire = false;
+            document.getElementById('tempWire').style.display = 'none';
+            let targetEl = document.elementFromPoint(e.clientX, e.clientY);
+            if (targetEl && targetEl.classList.contains('port-in')) {
+                let targetId = targetEl.closest('.canvas-node').id;
+                let sourceId = tempWireStartPort.closest('.canvas-node').id;
+                let edgeExists = edges.some(function(edge) { return edge.from === sourceId && edge.to === targetId; });
+                if (targetId !== sourceId && !edgeExists) {
+                    edges.push({ from: sourceId, to: targetId });
+                    renderWires();
                 }
+            }
+            tempWireStartPort = null;
+        }
+    }
+
+    function handleWheel(e) {
+        e.preventDefault();
+        const zF = e.deltaY < 0 ? 1.08 : 0.92;
+        const nZ = Math.min(2.5, Math.max(0.2, canvasZoom * zF));
+        const vpRect = document.getElementById('canvasViewport').getBoundingClientRect();
+        const mX = e.clientX - vpRect.left, mY = e.clientY - vpRect.top;
+        canvasPanX = mX - ((mX - canvasPanX) / canvasZoom) * nZ;
+        canvasPanY = mY - ((mY - canvasPanY) / canvasZoom) * nZ;
+        canvasZoom = nZ;
+        applyTransform();
+    }
+
+    // ==================== 2. 右键菜单与交互 ====================
+    function initContextMenu() {
+        const vp = document.getElementById('canvasViewport');
+        const menu = document.getElementById('comfyContextMenu');
+        const searchInput = document.getElementById('contextSearchInput');
+
+        vp.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            window.contextWorldX = (e.clientX - vp.getBoundingClientRect().left - canvasPanX) / canvasZoom;
+            window.contextWorldY = (e.clientY - vp.getBoundingClientRect().top - canvasPanY) / canvasZoom;
+            menu.style.left = e.clientX + 'px';
+            menu.style.top = e.clientY + 'px';
+            menu.style.display = 'flex';
+            setTimeout(function() { searchInput.focus(); }, 50);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!menu.contains(e.target)) menu.style.display = 'none';
+        });
+
+        searchInput.addEventListener('input', function(e) {
+            let kw = e.target.value.toLowerCase().trim();
+            document.querySelectorAll('.comfy-context-item').forEach(function(item) {
+                item.style.display = item.dataset.name.toLowerCase().includes(kw) ? 'flex' : 'none';
+            });
+        });
+
+        document.querySelectorAll('.comfy-context-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                addNodeToCanvasAt(this.dataset.id, this.dataset.name, this.dataset.icon, window.contextWorldX, window.contextWorldY);
+                menu.style.display = 'none';
+            });
+        });
+    }
+
+    // ==================== 3. 连线引擎 ====================
+    function startWire(e, nodeId) {
+        e.preventDefault(); e.stopPropagation();
+        isDrawingWire = true;
+        tempWireStartPort = document.getElementById(nodeId).querySelector('.port-out');
+        document.getElementById('tempWire').style.display = '';
+    }
+
+    function renderWires() {
+        var svg = document.getElementById('wireLayer');
+        svg.querySelectorAll('.solid-wire').forEach(function(e) { e.remove(); });
+        var wR = document.getElementById('canvasWorld').getBoundingClientRect();
+
+        edges.forEach(function(edge, index) {
+            var n1 = document.getElementById(edge.from), n2 = document.getElementById(edge.to);
+            if(!n1 || !n2) return;
+            var pO = n1.querySelector('.port-out'), pI = n2.querySelector('.port-in');
+            if(!pO || !pI) return;
+
+            var r1 = pO.getBoundingClientRect(), r2 = pI.getBoundingClientRect();
+            var sX = (r1.left + 7 - wR.left) / canvasZoom, sY = (r1.top + 7 - wR.top) / canvasZoom;
+            var eX = (r2.left + 7 - wR.left) / canvasZoom, eY = (r2.top + 7 - wR.top) / canvasZoom;
+
+            var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", 'M ' + sX + ' ' + sY + ' C ' + (sX+100) + ' ' + sY + ', ' + (eX-100) + ' ' + eY + ', ' + eX + ' ' + eY);
+            path.setAttribute("class", "wire-path solid-wire");
+            path.ondblclick = function(e) { e.stopPropagation(); edges.splice(index, 1); renderWires(); };
+            svg.appendChild(path);
+        });
+    }
+
+    // ==================== 4. 节点构建引擎 ====================
+    function createNodeInstance(nodeId, nodeName, nodeIcon, x, y, forceDomId) {
+        var id = forceDomId ? forceDomId : 'node-' + (++nodeIdCounter);
+        var el = document.createElement('div');
+        el.className = 'canvas-node' + ((nodeId === '-999' || nodeId === '-3') ? ' source-node' : '');
+        el.id = id; el.style.left = x + 'px'; el.style.top = y + 'px';
+        el.dataset.nodeId = nodeId; el.dataset.nodeIndex = nodeInstances.length;
+
+        var portInHtml = (nodeId === '-999' || nodeId === '-3') ? '' : '<div class="port port-in"></div>';
+        var bodyHtml = '';
+
+        if (nodeId === '-999' || nodeId === '-3') {
+            var placeholder = nodeId === '-999' ? '全局初始任务（起点）...' : '独立的数据源输入...';
+            bodyHtml = '<textarea class="form-control node-input-text" rows="4" style="font-size:12px; resize:none;" placeholder="' + placeholder + '"></textarea>';
+        } else {
+            var templates = [];
+            document.querySelectorAll('#contextMenuList .comfy-context-item').forEach(function(item) {
+                templates.push({ id: item.dataset.id, name: item.dataset.name });
+            });
+            var optionsHtml = templates.map(function(t) {
+                return '<option value="' + t.id + '" ' + (t.id === nodeId ? 'selected' : '') + '>' + t.name + '</option>';
+            }).join('');
+            bodyHtml = '<select class="node-type-select" id="' + id + '-select" onchange="onNodeTypeChange(\'' + id + '\')">' + optionsHtml + '</select>' +
+                '<button class="btn-expand-output mt-2 w-100" id="' + id + '-expandBtn" style="display:none;" onclick="document.getElementById(\'' + id + '-outputPanel\').classList.toggle(\'expanded\')"><i class="ti ti-eye me-1"></i> 查看输出</button>';
+        }
+
+        el.innerHTML = portInHtml +
+            '<div class="node-header" onpointerdown="startNodeDrag(event, \'' + id + '\')">' +
+            '<i class="node-icon ' + nodeIcon + '"></i><span class="node-title" style="cursor: move;">' + escapeHtml(nodeName) + '</span>' +
+            '<span class="node-status-dot" id="' + id + '-status"></span>' +
+            '<button class="btn-close-node" onclick="removeNodeInstance(\'' + id + '\')">×</button>' +
+            '</div>' +
+            '<div class="node-body p-2">' + bodyHtml + '</div>' +
+            '<div class="node-output-panel" id="' + id + '-outputPanel">' +
+            '<div class="node-output-meta" id="' + id + '-meta"></div><div class="node-output-content" id="' + id + '-output"></div>' +
+            '</div>' +
+            '<div class="port port-out" onpointerdown="startWire(event, \'' + id + '\')"></div>';
+
+        return { id: id, nodeId: nodeId, name: nodeName, icon: nodeIcon, el: el, x: x, y: y, outputData: null };
+    }
+
+    function addNodeToCanvasAt(id, name, icon, x, y) {
+        var inst = createNodeInstance(id, name, icon, x, y, null);
+        nodeInstances.push(inst);
+        document.getElementById('canvasWorld').appendChild(inst.el);
+        updateMonitor();
+    }
+
+    function removeNodeInstance(id) {
+        let idx = nodeInstances.findIndex(function(n) { return n.id === id; });
+        if(idx !== -1) {
+            nodeInstances[idx].el.remove(); nodeInstances.splice(idx, 1);
+            edges = edges.filter(function(e) { return e.from !== id && e.to !== id; });
+            renderWires(); updateMonitor();
+        }
+    }
+
+    function startNodeDrag(e, id) {
+        if (e.target.closest('select') || e.target.closest('button') || e.target.closest('textarea') || e.target.closest('.port')) return;
+        e.stopPropagation(); e.preventDefault();
+        dragTarget = nodeInstances.find(function(n) { return n.id === id; });
+        if (!dragTarget) return;
+        isDraggingNode = true;
+        document.getElementById('canvasWorld').appendChild(dragTarget.el);
+        dragOffset = { x: e.clientX - dragTarget.el.getBoundingClientRect().left, y: e.clientY - dragTarget.el.getBoundingClientRect().top };
+        dragTarget.el.classList.add('dragging');
+    }
+
+    function onNodeTypeChange(id) {
+        let inst = nodeInstances.find(function(n) { return n.id === id; });
+        let select = document.getElementById(id + '-select');
+        inst.nodeId = select.value; inst.name = select.options[select.selectedIndex].text;
+        inst.el.querySelector('.node-title').textContent = inst.name;
+        let item = document.querySelector('.comfy-context-item[data-id="' + inst.nodeId + '"]');
+        if(item) { inst.icon = item.dataset.icon; inst.el.querySelector('.node-icon').className = 'node-icon ' + inst.icon; }
+        inst.outputData = null; inst.el.classList.remove('done', 'error');
+        document.getElementById(id + '-status').className = 'node-status-dot';
+        let expandBtn = document.getElementById(id + '-expandBtn');
+        if(expandBtn) expandBtn.style.display = 'none';
+        document.getElementById(id + '-outputPanel').classList.remove('expanded');
+    }
+
+    function updateMonitor() {
+        let monitor = document.getElementById('monitorNodeCount');
+        if(monitor) monitor.innerText = nodeInstances.length;
+    }
+
+    // ==================== 5. 终极 DAG 图并发执行引擎 ====================
+    async function executeWorkflow() {
+        if (nodeInstances.length === 0) return;
+        executionAborted = false;
+        document.getElementById('btnExecute').disabled = true;
+        document.getElementById('btnExecute').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> 拓扑流转中...';
+        document.getElementById('btnStop').style.display = '';
+
+        nodeInstances.forEach(function(inst) {
+            inst.el.classList.remove('executing', 'done', 'error');
+            let statusDot = document.getElementById(inst.id + '-status');
+            if (statusDot) statusDot.className = 'node-status-dot';
+            inst.outputData = null;
+            let panel = document.getElementById(inst.id + '-outputPanel');
+            if(panel) panel.classList.remove('expanded');
+        });
+
+        saveCanvasToStorage();
+        var nodePromises = {}, finalOutputStr = "";
+
+        function getOrRunNode(nodeId) {
+            if (!nodePromises[nodeId]) {
+                nodePromises[nodeId] = (async function() {
+                    var inst = nodeInstances.find(function(n) { return n.id === nodeId; });
+                    if (!inst) return; // 👑 绝对防空指针1：保护本节点
+
+                    try {
+                        var preds = edges.filter(function(e) { return e.to === nodeId; }).map(function(e) { return e.from; });
+
+                        // 等待所有上游执行完毕
+                        await Promise.all(preds.map(function(p) { return getOrRunNode(p); }));
+                        if (executionAborted) throw new Error("手动急停");
+
+                        inst.el.classList.add('executing');
+                        let statusDot = document.getElementById(inst.id + '-status');
+                        if (statusDot) statusDot.className = 'node-status-dot running';
+
+                        if (inst.nodeId === '-999' || inst.nodeId === '-3') {
+                            let ta = inst.el.querySelector('.node-input-text');
+                            let val = ta ? ta.value.trim() : "（无文本输入）";
+                            inst.outputData = { output: val || "（无文本输入）", status: 'done', duration: 0, tokens: 0 };
+                        } else {
+                            let mergedInput = "";
+                            if (preds.length === 1) {
+                                let pInst = nodeInstances.find(function(n) { return n.id === preds[0]; });
+                                // 👑 绝对防空指针2：安全读取上游数据
+                                mergedInput = (pInst && pInst.outputData) ? pInst.outputData.output : "（上游节点未返回有效数据）";
+                            } else if (preds.length > 1) {
+                                mergedInput = "【多源数据汇聚】：\n";
+                                preds.forEach(function(p, idx) {
+                                    let pInst = nodeInstances.find(function(n) { return n.id === p; });
+                                    // 👑 绝对防空指针3：安全循环读取
+                                    let outTxt = (pInst && pInst.outputData) ? pInst.outputData.output : "（无数据）";
+                                    mergedInput += "--- 数据源 " + (idx+1) + " ---\n" + outTxt + "\n\n";
+                                });
+                            }
+
+                            let formData = new URLSearchParams();
+                            formData.append('userText', mergedInput || " ");
+                            formData.append('promptIds', inst.nodeId);
+                            formData.append('ajax', 'true');
+
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(function() { controller.abort(); }, 60000);
+
+                            var response = await fetch('chat', {
+                                method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                                body: formData.toString(), signal: controller.signal
+                            });
+                            clearTimeout(timeoutId);
+
+                            if (!response.ok) throw new Error('HTTP 状态码: ' + response.status);
+                            var result = await response.json();
+
+                            // 👑 绝对防空指针4：校验后端返回的数组结构
+                            if (result && result.nodeResults && result.nodeResults.length > 0) {
+                                inst.outputData = result.nodeResults[0];
+                                finalOutputStr = inst.outputData.output;
+                                if (inst.outputData.isPPT && inst.outputData.pptData) executePPTNode(inst.outputData.pptData);
+                            } else {
+                                throw new Error("后端节点未返回任何结果结构");
+                            }
+                        }
+                    } catch (err) {
+                        let msg = err.name === 'AbortError' ? '后端计算超时 (>60s)' : (err.message || '系统异常');
+                        inst.outputData = { output: '执行中断: ' + msg, status: 'error', duration: 0, tokens: 0 };
+                        // 👑 核心修复：绝不再 `throw err`！错误被吸收并展示在节点面板，让下游节点继续正常执行
+                    } finally {
+                        // 👑 绝对防空指针5：兜底赋值
+                        if (!inst.outputData) inst.outputData = { output: '未名崩溃', status: 'error', duration: 0, tokens: 0 };
+
+                        inst.el.classList.remove('executing');
+                        inst.el.classList.add(inst.outputData.status);
+
+                        let sd = document.getElementById(inst.id + '-status');
+                        if (sd) sd.className = 'node-status-dot ' + inst.outputData.status;
+
+                        let expandBtn = document.getElementById(inst.id + '-expandBtn');
+                        if (expandBtn) expandBtn.style.display = '';
+
+                        let metaInfo = document.getElementById(inst.id + '-meta');
+                        if (metaInfo) metaInfo.innerHTML = '<span><i class="ti ti-clock me-1"></i>' + (inst.outputData.duration || 0) + 'ms</span><span><i class="ti ti-flame me-1"></i>' + (inst.outputData.tokens || 0) + ' Token</span>';
+
+                        let outText = inst.outputData.output || '';
+                        let outputDiv = document.getElementById(inst.id + '-output');
+                        if (outputDiv) outputDiv.textContent = outText.length > 500 ? outText.substring(0, 500) + '...(点击展开查看详情)' : outText;
+
+                        let panel = document.getElementById(inst.id + '-outputPanel');
+                        if (panel) panel.classList.add('expanded');
+                    }
+                })();
+            }
+            return nodePromises[nodeId];
+        }
+
+        try {
+            await Promise.all(nodeInstances.map(function(inst) { return getOrRunNode(inst.id); }));
+            if (finalOutputStr) showFinalResult(finalOutputStr);
+            triggerConfetti();
+        } catch (e) {
+            console.warn('工作流引擎已安全截断');
+        }
+
+        resetExecuteButton();
+    }
+
+    function stopExecution() { executionAborted = true; resetExecuteButton(); showToast('已触发急停机制'); }
+    function resetExecuteButton() {
+        document.getElementById('btnExecute').disabled = false;
+        document.getElementById('btnExecute').innerHTML = '<i class="ti ti-player-play me-2"></i> 启动引擎 (Run)';
+        document.getElementById('btnStop').style.display = 'none';
+    }
+
+    // ==================== 6. 持久化与结果渲染 ====================
+    function getCanvasJson() {
+        var nodes = nodeInstances.map(function(inst) {
+            let ta = inst.el.querySelector('.node-input-text');
+            let val = (inst.nodeId === '-999' || inst.nodeId === '-3') && ta ? ta.value : '';
+            return { nodeId: inst.nodeId, name: inst.name, icon: inst.icon, x: inst.x, y: inst.y, domId: inst.id, textValue: val };
+        });
+        return { nodes: nodes, edges: edges, panX: canvasPanX, panY: canvasPanY, zoom: canvasZoom, nodeIdCounter: nodeIdCounter };
+    }
+
+    function renderCanvas(jsonObj) {
+        if (!jsonObj) return;
+        while (nodeInstances.length > 0) nodeInstances.pop().el.remove();
+        edges = [];
+        if(jsonObj.panX!==undefined) canvasPanX = jsonObj.panX; if(jsonObj.panY!==undefined) canvasPanY = jsonObj.panY;
+        if(jsonObj.zoom!==undefined) canvasZoom = jsonObj.zoom; if(jsonObj.nodeIdCounter!==undefined) nodeIdCounter = jsonObj.nodeIdCounter;
+
+        if (jsonObj.nodes) {
+            jsonObj.nodes.forEach(function(n) {
+                let inst = createNodeInstance(n.nodeId, n.name, n.icon, n.x, n.y, n.domId);
+                let ta = inst.el.querySelector('.node-input-text');
+                if (n.textValue && (n.nodeId === '-999' || n.nodeId === '-3') && ta) ta.value = n.textValue;
+                nodeInstances.push(inst); document.getElementById('canvasWorld').appendChild(inst.el);
             });
         }
-        viewer.innerHTML = marked.parse(rawText);
-    } else {
-        viewer.textContent = rawText;
-    }
-}
-
-// ==================== PPT 导出 ====================
-async function executePPTNode(aiGeneratedJsonString) {
-    console.log('PPT 渲染节点启动...');
-    var formData = new URLSearchParams();
-    formData.append('action', 'export');
-    formData.append('pptData', encodeURIComponent(aiGeneratedJsonString));
-
-    try {
-        var response = await fetch('pptServlet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-            body: formData.toString()
-        });
-        if (!response.ok) throw new Error('渲染失败，状态码: ' + response.status);
-        var blob = await response.blob();
-        var downloadUrl = window.URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = 'AI智能生成汇报.pptx';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(downloadUrl);
-        console.log('PPT 合成完毕并已触发下载！');
-    } catch (error) {
-        console.error('PPT 生成异常:', error);
-        showToast('PPT 生成失败，请检查 AI 输出的 JSON 格式是否正确！', 'danger');
-    }
-}
-
-// ==================== 缩放控制 ====================
-function zoomIn() {
-    canvasZoom = Math.min(2.5, canvasZoom * 1.2);
-    var viewport = document.getElementById('canvasViewport');
-    var vw = viewport.clientWidth;
-    var vh = viewport.clientHeight;
-    var worldCX = (vw / 2 - canvasPanX) / (canvasZoom / 1.2);
-    var worldCY = (vh / 2 - canvasPanY) / (canvasZoom / 1.2);
-    canvasPanX = vw / 2 - worldCX * canvasZoom;
-    canvasPanY = vh / 2 - worldCY * canvasZoom;
-    applyTransform();
-    updateZoomLabel();
-}
-
-function zoomOut() {
-    canvasZoom = Math.max(0.2, canvasZoom * 0.833);
-    var viewport = document.getElementById('canvasViewport');
-    var vw = viewport.clientWidth;
-    var vh = viewport.clientHeight;
-    var worldCX = (vw / 2 - canvasPanX) / (canvasZoom / 0.833);
-    var worldCY = (vh / 2 - canvasPanY) / (canvasZoom / 0.833);
-    canvasPanX = vw / 2 - worldCX * canvasZoom;
-    canvasPanY = vh / 2 - worldCY * canvasZoom;
-    applyTransform();
-    updateZoomLabel();
-}
-
-function resetView() {
-    canvasZoom = 1;
-    var viewport = document.getElementById('canvasViewport');
-    var vw = viewport.clientWidth;
-    var vh = viewport.clientHeight;
-    canvasPanX = (CANVAS_WORLD_SIZE - vw) / 2;
-    canvasPanY = (CANVAS_WORLD_SIZE - vh) / 2;
-
-    // 如果已有节点，居中显示管道
-    if (nodeInstances.length > 0) {
-        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        nodeInstances.forEach(function(inst) {
-            minX = Math.min(minX, inst.x);
-            minY = Math.min(minY, inst.y);
-            maxX = Math.max(maxX, inst.x + NODE_WIDTH + NODE_GAP + 44);
-            maxY = Math.max(maxY, inst.y + 250);
-        });
-        var nodesW = maxX - minX + 120;
-        var nodesH = maxY - minY + 120;
-        var fitZoom = Math.min(vw / nodesW, vh / nodesH, 1.2);
-        canvasZoom = Math.max(0.3, fitZoom);
-        canvasPanX = vw / 2 - (minX + nodesW / 2) * canvasZoom;
-        canvasPanY = vh / 2 - (minY + nodesH / 2) * canvasZoom;
+        if (jsonObj.edges) edges = jsonObj.edges;
+        applyTransform(); setTimeout(renderWires, 50); updateMonitor();
     }
 
-    applyTransform();
-    updateZoomLabel();
-}
-
-// ==================== 画板清空 ====================
-function clearCanvas() {
-    tablerConfirm('清空画板', '确定要清空画板上的所有节点吗？此操作不可撤销。', function() {
-        while (nodeInstances.length > 0) {
-            var inst = nodeInstances.pop();
-            inst.el.remove();
-        }
-        pipelineConnectors.forEach(function(c) { c.remove(); });
-        pipelineConnectors = [];
-        document.getElementById('finalResultBox').value = '';
-        var viewer = document.getElementById('markdown-viewer');
-        if (viewer) viewer.innerHTML = '<div class="text-muted text-center py-4">暂无输出，请在画布上编排节点并启动工作流。</div>';
-        document.getElementById('finalOutputPanel').style.display = 'none';
-        showToast('画板已清空');
-    });
-}
-
-// ==================== 序列化与缓存 ====================
-function getCanvasJson() {
-    var nodes = nodeInstances.map(function(inst) {
-        return {
-            nodeId: inst.nodeId,
-            name: inst.name,
-            icon: inst.icon,
-            x: inst.x,
-            y: inst.y
-        };
-    });
-    return {
-        nodes: nodes,
-        input: document.getElementById('userTextInput').value,
-        panX: canvasPanX,
-        panY: canvasPanY,
-        zoom: canvasZoom
-    };
-}
-
-function renderCanvas(jsonObj) {
-    if (!jsonObj) return;
-
-    // 清空画布（节点 + 连接箭头）
-    while (nodeInstances.length > 0) {
-        var old = nodeInstances.pop();
-        old.el.remove();
-    }
-    pipelineConnectors.forEach(function(c) { c.remove(); });
-    pipelineConnectors = [];
-
-    // 恢复输入
-    if (jsonObj.input !== undefined) {
-        document.getElementById('userTextInput').value = jsonObj.input;
-    }
-
-    // 恢复视图
-    if (jsonObj.panX !== undefined) canvasPanX = jsonObj.panX;
-    if (jsonObj.panY !== undefined) canvasPanY = jsonObj.panY;
-    if (jsonObj.zoom !== undefined) canvasZoom = jsonObj.zoom;
-
-    // 恢复节点
-    if (jsonObj.nodes && Array.isArray(jsonObj.nodes)) {
-        var world = document.getElementById('canvasWorld');
-        jsonObj.nodes.forEach(function(n) {
-            var inst = createNodeInstance(
-                n.nodeId || '-1',
-                n.name || '未命名',
-                n.icon || 'ti ti-robot',
-                n.x || 200 + nodeInstances.length * 50,
-                n.y || 200 + nodeInstances.length * 50
-            );
-            nodeInstances.push(inst);
-            world.appendChild(inst.el);
+    function clearCanvas() {
+        tablerConfirm('清空画板', '确定清空所有节点与连线吗？', function() {
+            while (nodeInstances.length > 0) nodeInstances.pop().el.remove();
+            edges = []; renderWires(); updateMonitor(); showToast('已清空');
         });
     }
 
-    applyTransform();
-    updateZoomLabel();
-    reflowPipeline();
-}
+    function saveCanvasToStorage() { try { sessionStorage.setItem('ai_workflow_canvas_state', JSON.stringify(getCanvasJson())); } catch(e){} }
+    function restoreCanvasState() { try { let s = sessionStorage.getItem('ai_workflow_canvas_state'); if(s && '${empty finalResult}'==='true') renderCanvas(JSON.parse(s)); } catch(e){} }
 
-function saveCanvasToStorage() {
-    try {
-        sessionStorage.setItem('ai_workflow_canvas_state', JSON.stringify(getCanvasJson()));
-    } catch(e) { /* quota exceeded, ignore */ }
-}
-
-function restoreCanvasState() {
-    try {
-        var saved = sessionStorage.getItem('ai_workflow_canvas_state');
-        if (saved) {
-            var jsonObj = JSON.parse(saved);
-            // 只在没有服务器数据时恢复
-            <c:if test="${empty finalResult}">
-                renderCanvas(jsonObj);
-            </c:if>
-        }
-    } catch(e) { /* ignore */ }
-}
-
-// ==================== 本地缓存功能（保留原有逻辑） ====================
-var CACHE_KEY = 'ai_workflow_local_history';
-
-function saveToLocalCache() {
-    var name = prompt('给这个暂存的工作流起个名字吧：', '未命名工作流 ' + new Date().toLocaleTimeString());
-    if (!name) return;
-
-    var record = {
-        id: Date.now(),
-        name: name,
-        timestamp: new Date().toLocaleString(),
-        data: getCanvasJson()
-    };
-
-    var history = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
-    history.unshift(record);
-    if (history.length > 20) history.pop();
-    localStorage.setItem(CACHE_KEY, JSON.stringify(history));
-    renderLocalSidebar();
-    showToast('已秒存至浏览器本地缓存！');
-}
-
-function renderLocalSidebar() {
-    var history = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
-    var container = document.getElementById('localWorkflowList');
-    if (!container) return;
-
-    if (history.length === 0) {
-        container.innerHTML = '<div class="p-3 text-center text-muted" style="font-size:12px;">暂无本地缓存</div>';
-        return;
+    function showFinalResult(text) {
+        document.getElementById('finalResultBox').value = text;
+        new bootstrap.Offcanvas(document.getElementById('outputOffcanvas')).show();
+        if(typeof marked !== 'undefined') document.getElementById('markdown-viewer').innerHTML = marked.parse(text);
     }
 
-    container.innerHTML = history.map(function(item) {
-        return '<div class="list-group-item list-group-item-action d-flex align-items-center">' +
-            '<div class="flex-fill" style="cursor:pointer;" onclick="loadFromCache(' + item.id + ')">' +
-            '<div class="fw-bold text-dark" style="font-size:13px;"><i class="ti ti-file-code me-2 text-muted"></i>' + escapeHtml(item.name) + '</div>' +
-            '<div class="text-muted" style="font-size:11px; margin-left:24px;">' + item.timestamp + '</div>' +
-            '</div>' +
-            '<a href="#" class="text-danger ms-auto p-2" onclick="deleteCache(' + item.id + ')" title="删除">' +
-            '<i class="ti ti-trash"></i></a>' +
-            '</div>';
-    }).join('');
-}
+    function zoomIn() { canvasZoom = Math.min(2.5, canvasZoom * 1.2); applyTransform(); renderWires(); }
+    function zoomOut() { canvasZoom = Math.max(0.2, canvasZoom * 0.833); applyTransform(); renderWires(); }
+    function resetView() { canvasZoom=1; canvasPanX=(CANVAS_WORLD_SIZE-document.getElementById('canvasViewport').clientWidth)/2; canvasPanY=(CANVAS_WORLD_SIZE-document.getElementById('canvasViewport').clientHeight)/2; applyTransform(); renderWires(); }
+    function escapeHtml(s) { return s?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''; }
 
-function loadFromCache(id) {
-    tablerConfirm('覆盖画板警告', '加载工作流将覆盖当前画板上的所有未保存内容，确定加载吗？', function() {
-        var history = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
-        var record = history.find(function(item) { return item.id === id; });
-        if (record) {
-            renderCanvas(record.data);
-            showToast('成功恢复：' + record.name);
-        }
-    });
-}
+    const CACHE_KEY = 'ai_workflow_local_history';
+    function saveToLocalCache() { let n = prompt('暂存名称：', '工作流 ' + new Date().toLocaleTimeString()); if(n) { let h = JSON.parse(localStorage.getItem(CACHE_KEY)||'[]'); h.unshift({id: Date.now(), name: n, ts: new Date().toLocaleString(), data: getCanvasJson()}); localStorage.setItem(CACHE_KEY, JSON.stringify(h.slice(0,20))); renderLocalSidebar(); showToast('暂存成功'); } }
 
-function deleteCache(id) {
-    tablerConfirm('彻底删除', '确定要删除这条本地暂存记录吗？', function() {
-        var history = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
-        var filtered = history.filter(function(item) { return item.id !== id; });
-        localStorage.setItem(CACHE_KEY, JSON.stringify(filtered));
-        renderLocalSidebar();
-    });
-}
-
-function exportToFile() {
-    var canvasData = getCanvasJson();
-    var jsonStr = JSON.stringify(canvasData, null, 2);
-    var blob = new Blob([jsonStr], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'workflow_' + new Date().getTime() + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('导出成功！');
-}
-
-function importFromFile(event) {
-    var file = event.target.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            var jsonObj = JSON.parse(e.target.result);
-            renderCanvas(jsonObj);
-            showToast('文件导入并解析成功！');
-        } catch (err) {
-            showToast('导入失败，不是合法的 JSON 工作流文件！', 'danger');
-        }
-        event.target.value = '';
-    };
-    reader.readAsText(file);
-}
-
-// ==================== 节点面板搜索 ====================
-function filterPalette() {
-    var keyword = (document.getElementById('paletteSearch').value || '').toLowerCase();
-    document.querySelectorAll('#paletteList .palette-item').forEach(function(item) {
-        var text = (item.dataset.nodeName + ' ' + item.dataset.nodeDesc).toLowerCase();
-        item.style.display = text.includes(keyword) ? '' : 'none';
-    });
-}
-
-// ==================== 工具函数 ====================
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function triggerConfetti() {
-    if (typeof confetti === 'undefined') return;
-    var duration = 3 * 1000;
-    var animationEnd = Date.now() + duration;
-    var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
-
-    function randomInRange(min, max) { return Math.random() * (max - min) + min; }
-
-    var interval = setInterval(function() {
-        var timeLeft = animationEnd - Date.now();
-        if (timeLeft <= 0) return clearInterval(interval);
-        var particleCount = 50 * (timeLeft / duration);
-        confetti(Object.assign({}, defaults, {
-            particleCount: particleCount,
-            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-            colors: ['#26eb26', '#206bc4', '#f59f00', '#d63939', '#74b816']
-        }));
-        confetti(Object.assign({}, defaults, {
-            particleCount: particleCount,
-            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-            colors: ['#26eb26', '#206bc4', '#f59f00', '#d63939', '#74b816']
-        }));
-    }, 250);
-}
-// 记录右键点击时的世界坐标
-var contextWorldX = 0;
-var contextWorldY = 0;
-
-document.addEventListener('DOMContentLoaded', function() {
-    const viewport = document.getElementById('canvasViewport');
-    const contextMenu = document.getElementById('comfyContextMenu');
-    const searchInput = document.getElementById('contextSearchInput');
-    const menuItems = document.querySelectorAll('.comfy-context-item');
-
-    // 1. 拦截画板右键事件
-    viewport.addEventListener('contextmenu', function(e) {
-        e.preventDefault(); // 阻止浏览器默认右键菜单
-
-        // 计算点击位置在虚拟画板中的真实世界坐标
-        const rect = viewport.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        contextWorldX = (mouseX - canvasPanX) / canvasZoom;
-        contextWorldY = (mouseY - canvasPanY) / canvasZoom;
-
-        // 定位并显示自定义菜单
-        contextMenu.style.left = e.clientX + 'px';
-        contextMenu.style.top = e.clientY + 'px';
-        contextMenu.style.display = 'flex';
-
-        // 自动聚焦搜索框，体验拉满
-        searchInput.value = '';
-        filterContextMenu('');
-        setTimeout(() => searchInput.focus(), 50);
-    });
-
-    // 2. 点击空白处隐藏菜单
-    document.addEventListener('click', function(e) {
-        if (!contextMenu.contains(e.target)) {
-            contextMenu.style.display = 'none';
-        }
-    });
-
-    // 3. 搜索过滤逻辑
-    searchInput.addEventListener('input', function(e) {
-        filterContextMenu(e.target.value.toLowerCase().trim());
-    });
-
-    function filterContextMenu(keyword) {
-        menuItems.forEach(item => {
-            const name = item.dataset.name.toLowerCase();
-            item.style.display = name.includes(keyword) ? 'flex' : 'none';
-        });
+    function renderLocalSidebar() {
+        let h = JSON.parse(localStorage.getItem(CACHE_KEY)||'[]');
+        let c = document.getElementById('localWorkflowList');
+        if(c) c.innerHTML = h.length ? h.map(function(i) { return '<div class="list-group-item d-flex"><div class="flex-fill" style="cursor:pointer;" onclick="loadFromCache(' + i.id + ')"><div class="fw-bold fs-6">' + escapeHtml(i.name) + '</div><div class="text-muted" style="font-size:11px;">' + i.ts + '</div></div><a href="#" class="text-danger p-2" onclick="deleteCache(' + i.id + ')"><i class="ti ti-trash"></i></a></div>'; }).join('') : '<div class="p-3 text-center text-muted">暂无缓存</div>';
     }
 
-    // 4. 点击菜单项，在鼠标位置精准生成节点
-    menuItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const id = this.dataset.id;
-            const name = this.dataset.name;
-            const icon = this.dataset.icon;
-            // 呼叫现有的核心方法，直接在鼠标世界坐标处生成
-            addNodeToCanvasAt(id, name, icon, contextWorldX, contextWorldY);
-            contextMenu.style.display = 'none';
-        });
-    });
-});
+    function loadFromCache(id) { tablerConfirm('加载警告', '将覆盖当前画板，确认加载？', function() { let r = JSON.parse(localStorage.getItem(CACHE_KEY)||'[]').find(function(i) { return i.id===id; }); if(r) { renderCanvas(r.data); showToast('加载成功'); }}); }
+    function deleteCache(id) { tablerConfirm('删除记录', '确认删除该暂存吗？', function() { localStorage.setItem(CACHE_KEY, JSON.stringify(JSON.parse(localStorage.getItem(CACHE_KEY)||'[]').filter(function(i) { return i.id!==id; }))); renderLocalSidebar(); }); }
+    function exportToFile() { let b=new Blob([JSON.stringify(getCanvasJson(),null,2)],{type:'application/json'}), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download='workflow.json'; a.click(); URL.revokeObjectURL(u); }
+    function importFromFile(e) { let f=e.target.files[0], r=new FileReader(); r.onload=function(ev) { try{renderCanvas(JSON.parse(ev.target.result)); showToast('导入成功');}catch(err){showToast('导入失败', 'danger');}}; if(f) r.readAsText(f); e.target.value=''; }
+
+    async function executePPTNode(data) { let fd=new URLSearchParams(); fd.append('action','export'); fd.append('pptData',encodeURIComponent(data)); try{ let r=await fetch('pptServlet',{method:'POST',body:fd.toString(),headers:{'Content-Type':'application/x-www-form-urlencoded'}}); if(!r.ok) throw new Error(r.status); let b=await r.blob(), u=window.URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download='AI生成汇报.pptx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u); }catch(e){showToast('PPT生成失败','danger');} }
+
+    function triggerConfetti() {
+        if(typeof confetti==='undefined') return;
+        let end=Date.now()+3000, d={startVelocity:30,spread:360,ticks:60,zIndex:9999};
+        let interval=setInterval(function() {
+            let tl=end-Date.now();
+            if(tl<=0)return clearInterval(interval);
+            let c=50*(tl/3000);
+            confetti(Object.assign({},d,{particleCount:c,origin:{x:Math.random()*(0.3-0.1)+0.1,y:Math.random()-0.2},colors:['#26eb26','#206bc4','#f59f00','#d63939','#74b816']}));
+            confetti(Object.assign({},d,{particleCount:c,origin:{x:Math.random()*(0.9-0.7)+0.7,y:Math.random()-0.2}}));
+        },250);
+    }
 </script>
 
 <%-- 隐藏的 PPT 数据区 --%>
@@ -1749,36 +1194,62 @@ document.addEventListener('DOMContentLoaded', function() {
         <h3 class="offcanvas-title fw-bold" id="toolboxOffcanvasLabel"><i class="ti ti-box me-2 text-primary"></i> 工作台工具箱</h3>
         <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
-    <div class="offcanvas-body p-3">
+    <div class="offcanvas-body p-3 d-flex flex-column">
 
-        <!-- 核心操作区 -->
-        <label class="form-label text-muted fw-bold mb-2">文件与数据流</label>
-        <div class="d-flex flex-column gap-2 mb-4">
-            <button class="btn btn-primary w-100 shadow-sm" onclick="saveToLocalCache()">
-                <i class="ti ti-device-floppy me-2"></i> 保存当前画板到浏览器
-            </button>
-            <div class="d-flex gap-2">
-                <button class="btn btn-outline-success flex-fill" onclick="exportToFile()">
-                    <i class="ti ti-download me-1"></i> 导出 JSON
-                </button>
-                <input type="file" id="importJsonInput" style="display:none" accept=".json" onchange="importFromFile(event)">
-                <button class="btn btn-outline-warning flex-fill" onclick="document.getElementById('importJsonInput').click()">
-                    <i class="ti ti-upload me-1"></i> 导入 JSON
-                </button>
+        <!-- 1. 引擎状态监控区 (模拟高级平台感) -->
+        <div class="card bg-dark text-white border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="ti ti-cpu fs-2 text-primary me-2"></i>
+                    <h4 class="m-0 fw-bold">DeepSeek DAG 引擎</h4>
+                </div>
+                <div class="d-flex justify-content-between text-muted fs-6">
+                    <span>并发状态: <span class="text-success fw-bold">Ready</span></span>
+                    <span>当前节点: <span id="monitorNodeCount" class="text-white fw-bold">1</span> 个</span>
+                </div>
             </div>
-            <button class="btn btn-outline-danger w-100" onclick="clearCanvas()">
-                <i class="ti ti-trash me-2"></i> 清空当前画板
-            </button>
+            <!-- 一条骚气的赛博呼吸灯线条 -->
+            <div style="height: 3px; background: linear-gradient(90deg, #206bc4, #4299e1, #206bc4); background-size: 200% 100%; animation: gradientMove 2s linear infinite;"></div>
         </div>
 
-        <!-- 本地缓存列表区 -->
-        <label class="form-label text-muted fw-bold mb-2">本地暂存记录</label>
-        <div class="card shadow-sm border-primary" style="border-top: 2px solid #206bc4;">
-            <div class="list-group list-group-flush" id="localWorkflowList" style="max-height: 400px; overflow-y: auto;">
+        <!-- 2. DAG 拓扑流管控区 -->
+        <label class="form-label text-muted fw-bold mb-2 fs-6"><i class="ti ti-route me-1"></i>拓扑流管控</label>
+        <div class="row g-2 mb-4">
+            <div class="col-6">
+                <button class="btn btn-outline-primary w-100" onclick="saveToLocalCache()" title="保存当前拓扑到浏览器">
+                    <i class="ti ti-device-floppy me-1"></i> 本地暂存
+                </button>
+            </div>
+            <div class="col-6">
+                <button class="btn btn-outline-danger w-100" onclick="clearCanvas()" title="清空全部节点与连线">
+                    <i class="ti ti-trash me-1"></i> 清空画布
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. 文件资产流转区 -->
+        <label class="form-label text-muted fw-bold mb-2 fs-6"><i class="ti ti-file-export me-1"></i>资产流转</label>
+        <div class="row g-2 mb-4">
+            <div class="col-6">
+                <button class="btn btn-light w-100 text-dark border shadow-sm" onclick="exportToFile()" title="将拓扑导出为 JSON 文件">
+                    <i class="ti ti-download text-success me-1"></i> 导出 JSON
+                </button>
+            </div>
+            <div class="col-6">
+                <input type="file" id="importJsonInput" style="display:none" accept=".json" onchange="importFromFile(event)">
+                <button class="btn btn-light w-100 text-dark border shadow-sm" onclick="document.getElementById('importJsonInput').click()" title="从本地导入 JSON 工作流">
+                    <i class="ti ti-upload text-warning me-1"></i> 导入 JSON
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. 本地缓存列表区 -->
+        <label class="form-label text-muted fw-bold mb-2 fs-6 mt-auto"><i class="ti ti-history me-1"></i>历史暂存记录</label>
+        <div class="card shadow-sm border-primary flex-fill" style="border-top: 3px solid #206bc4; min-height: 200px;">
+            <div class="list-group list-group-flush" id="localWorkflowList" style="max-height: 300px; overflow-y: auto;">
                 <!-- JS 会自动把列表渲染到这里 -->
             </div>
         </div>
-
     </div>
 </div>
 <jsp:include page="footer.jsp" />
